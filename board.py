@@ -9,15 +9,19 @@ BOARD_WIDTH = BOARD_HEIGHT = ROWS_OF_CHECKERS * 2 + 1
 NUM_HIST_MOVES = 3      # Number of history moves to keep
 
 class Board:
-    def __init__(self):
-        self._board = np.zeros((BOARD_WIDTH, BOARD_HEIGHT, NUM_HIST_MOVES), dtype='uint8')  # Initialize empty board
-        self._board[:, :, 0] = np.array([[0, 0, 0, 0, 2, 2, 2],
-                                         [0, 0, 0, 0, 0, 2, 2],
-                                         [0, 0, 0, 0, 0, 0, 2],
-                                         [0, 0, 0, 0, 0, 0, 0],
-                                         [1, 0, 0, 0, 0, 0, 0],
-                                         [1, 1, 0, 0, 0, 0, 0],
-                                         [1, 1, 1, 0, 0, 0, 0]])
+	def __init__(self):
+		self._board = np.zeros((BOARD_WIDTH, BOARD_HEIGHT, NUM_HIST_MOVES), dtype='uint8')  # Initialize empty board
+		self._board[:, :, 0] = np.array([[0, 0, 0, 0, 2, 2, 2],
+										 [0, 0, 0, 0, 0, 2, 2],
+					 					 [0, 0, 0, 0, 0, 0, 2],
+										 [0, 0, 0, 0, 0, 0, 0],
+										 [1, 0, 0, 0, 0, 0, 0],
+										 [1, 1, 0, 0, 0, 0, 0],
+										 [1, 1, 1, 0, 0, 0, 0]])
+		self.player1_pos = [(BOARD_HEIGHT-1, 0), (BOARD_HEIGHT-2, 0), (BOARD_HEIGHT-1, 1),
+							(BOARD_HEIGHT-2, 0), (BOARD_HEIGHT-2, 1), (BOARD_HEIGHT-1, 2)]
+		self.player2_pos = [(0, BOARD_WIDTH-1), (1, BOARD_WIDTH-1), (0, BOARD_WIDTH-2),
+							(2, BOARD_WIDTH-1), (1, BOARD_WIDTH-2), (0, BOARD_WIDTH-3)]
 
 
     @property
@@ -75,24 +79,30 @@ class Board:
 
         print('=' * 75)
 
+	def valid_moves(self, cur_player):
+		""" Returns the list of valid moves given the current player """
+		# TODO: return a list of valid moves given the current players
 
+		pass
 
-    def valid_moves(self, cur_player):
-        """ Returns the list of valid moves given the current player """
-        # TODO: return a list of valid moves given the current players
-        pass
+	def agent_place(self, origin_pos, dest_pos):
+		""" Returns void"""
+		# TODO: move a chess piece from its original position to a destination in machine indexing system
 
+	def human_place(self, origin_pos, dest_pos):
+		""" Returns void"""
+		# TODO: move a chess piece from its original position to a destination in human indexing system
 
 
 
 if __name__ == '__main__':
     board = Board()
 
-    # print(board.board)
-    # board.print_board()
-    # print(board.check_win())
+	# print(board.board)
+	board.print_board()
+	# print(board.check_win())
 
-    print(board.check_win())
+	#print(board.check_win())
 
     # for i in range(50000):
     # 	board.check_win()
