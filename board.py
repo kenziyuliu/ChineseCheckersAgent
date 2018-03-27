@@ -32,9 +32,9 @@ class Board:
         """
         return self._board
 
-      
+
     def check_win(self):
-        """ Returns the winner given the current board state; -1 if game still going """
+        """ Returns the winner given the current board state; 0 if game still going """
         cur_board = self._board[:, :, 0]
         # to win:
         # 	player 1: go to upper right
