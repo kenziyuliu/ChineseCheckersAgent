@@ -33,11 +33,13 @@ class Board:
 
 
 	def check_win(self):
-		""" Returns the winner given the current board state; 0 if game still going """
+		"""
+		Returns the winner given the current board state; 0 if game still going
+		To win:
+		 	player 1: all checkers to upper right
+		 	player 2: all checkers to lower left
+		"""
 		cur_board = self._board[:, :, 0]
-		# to win:
-		# 	player 1: go to upper right
-		# 	player 2: 		lower left
 		one_win = two_win = True
 		for k in range(BOARD_WIDTH - ROWS_OF_CHECKERS, BOARD_WIDTH):
 			if one_win:
@@ -54,7 +56,7 @@ class Board:
 		return PLAYER_ONE if one_win else PLAYER_TWO
 
 
-	def print_board(self, gap_btw_checkers=3):
+	def visualise(self, gap_btw_checkers=3):
 		""" Prints the current board for human visualisation """
 		print('=' * 75)
 		print('Current Status:\n')
@@ -83,14 +85,20 @@ class Board:
 
 
 	def place(self, origin_pos, dest_pos):
-		""" Returns void"""
+		""" Makes a move with array indices """
 		# TODO: move a chess piece from its original position to a destination in machine indexing system
-		pass
+		# TODO FIXME: Record history to board!
+		cur_board = self._board[:, :, 0]
+		cur_board[origin_pos], cur_board[dest_pos] = cur_board[dest_pos], cur_board[origin_pos]
 
-	def human_place(self, origin_pos, dest_pos):
-		""" Returns void"""
+		return self.check_win()
 
-		pass
+
+	# def human_place(self, origin_pos, dest_pos):
+	# 	""" Makes a move with human board coordinates """
+	# 	from_coord = board_utils.human_coord_to_np_index(origin_pos)
+	# 	to_coord = board_utils.human_coord_to_np_index(dest_pos)
+	# 	self.place(from_coord, to_coord)
 
 
 if __name__ == '__main__':
@@ -101,7 +109,7 @@ if __name__ == '__main__':
 
 	# print(board.board[6, 0, 0])
 	# print(board.board)
-	board.print_board()
+	board.visualise()
 	# print(board.check_win())
 	# print(board.check_win())
 	# for i in range(50000):
