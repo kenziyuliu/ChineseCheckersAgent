@@ -13,11 +13,11 @@ class Board:
                                          [1, 1, 0, 0, 0, 0, 0],
                                          [1, 1, 1, 0, 0, 0, 0]])
 
-        self.checker_pos = [[],
-                            [(BOARD_HEIGHT-1, 0), (BOARD_HEIGHT-2, 0), (BOARD_HEIGHT-1, 1),
-                             (BOARD_HEIGHT-3, 0), (BOARD_HEIGHT-2, 1), (BOARD_HEIGHT-1, 2)],
-                            [(0, BOARD_WIDTH-1), (1, BOARD_WIDTH-1), (0, BOARD_WIDTH-2),
-                             (2, BOARD_WIDTH-1), (1, BOARD_WIDTH-2), (0, BOARD_WIDTH-3)]]
+        self.checkers_pos = [[],
+                            set([(BOARD_HEIGHT-1, 0), (BOARD_HEIGHT-2, 0), (BOARD_HEIGHT-1, 1),
+                                 (BOARD_HEIGHT-3, 0), (BOARD_HEIGHT-2, 1), (BOARD_HEIGHT-1, 2)]),
+                            set([(0, BOARD_WIDTH-1), (1, BOARD_WIDTH-1), (0, BOARD_WIDTH-2),
+                                 (2, BOARD_WIDTH-1), (1, BOARD_WIDTH-2), (0, BOARD_WIDTH-3)])]
 
     @property
     def board(self):
@@ -56,15 +56,15 @@ class Board:
         return PLAYER_ONE if one_win else PLAYER_TWO
 
 
-	def visualise(self, cur_player=None, gap_btw_checkers=3):
-		""" Prints the current board for human visualisation """
-		print('=' * 75)
-		print('Current Status:' + ' ' * 40 + 'Current Player: {}\n'.format(cur_player))
+    def visualise(self, cur_player=None, gap_btw_checkers=3):
+        """ Prints the current board for human visualisation """
+        print('=' * 75)
+        print('Current Status:' + ' ' * 40 + 'Current Player: {}\n'.format(cur_player))
 
-		cur_board = self._board[:, :, 0]        # Get current board from the topmost layer
-		visual_width = BOARD_WIDTH * (gap_btw_checkers + 1) - gap_btw_checkers
-		visual_height = BOARD_HEIGHT * 2 - 1    # Dimensions for visualisation
-		leading_spaces = visual_width // 2
+        cur_board = self._board[:, :, 0]        # Get current board from the topmost layer
+        visual_width = BOARD_WIDTH * (gap_btw_checkers + 1) - gap_btw_checkers
+        visual_height = BOARD_HEIGHT * 2 - 1    # Dimensions for visualisation
+        leading_spaces = visual_width // 2
 
         for i in range(1, visual_height + 1):
             # Number of slots in the board row
@@ -76,12 +76,12 @@ class Board:
 
         print('=' * 75)
 
-    def valid_checker_moves(self, cur_player, checker_id):
+
+    def valid_checker_moves(self, cur_player, checker_pos):
         """ Returns all valid moves for one checker piece"""
-        curr_row = self.checker_pos[cur_player][checker_id][0]
-        curr_col = self.checker_pos[cur_player][checker_id][1]
+        curr_row, curr_col = checker_pos
         result = []
-        # map to check already explored moves 
+        # map to check already explored moves
         checkMap = np.zeros((BOARD_WIDTH, BOARD_HEIGHT), dtype='uint8')
         result.append((curr_row, curr_col))
         checkMap[curr_row][curr_col] = 1
@@ -114,10 +114,10 @@ class Board:
         self.jump_recursion_helper(result, checkMap, (curr_row, curr_col))
         return result
 
+
     def jump_recursion_helper(self, valid_moves_set, checkMap, position):
         """ Add all recursive jumping moves into the valid_moves_set"""
-        curr_row = position[0]
-        curr_col = position[1]
+        curr_row, curr_col = position
         # check up jump and recursion
         if (curr_row-2 >= 0 and checkMap[curr_row-2][curr_col] == 0 and self.board[curr_row-1, curr_col, 0] != 0 and self.board[curr_row-2, curr_col, 0] == 0):
             valid_moves_set.append((curr_row-2, curr_col))
@@ -148,21 +148,28 @@ class Board:
             valid_moves_set.append((curr_row+2, curr_col+2))
             checkMap[curr_row+2][curr_col+2] = 1
             self.jump_recursion_helper(valid_moves_set, checkMap, (curr_row+2, curr_col+2))
-    
+
+
     def valid_moves(self, cur_player):
         """ Returns the list of valid moves given the current player """
         valid_moves_set = {}
-        for i in range(0, 6):
-            valid_moves_set[self.checker_pos[cur_player][i]] = self.valid_checker_moves(cur_player, i)
+        for checker_pos in self.checkers_pos[cur_player]:
+            valid_moves_set[checker_pos] = self.valid_checker_moves(cur_player, checker_pos)
         return valid_moves_set
 
 
-    def place(self, origin_pos, dest_pos):
+    def place(self, cur_player, origin_pos, dest_pos):
         """ Makes a move with array indices """
-        # TODO: move a chess piece from its original position to a destination in machine indexing system
         # TODO FIXME: Record history to board!
-        cur_board = self._board[:, :, 0]
+        cur_board = np.copy(self._board[:, :, 0])
         cur_board[origin_pos], cur_board[dest_pos] = cur_board[dest_pos], cur_board[origin_pos]
+
+        # Move the checker
+        self.checkers_pos[cur_player].remove(origin_pos)
+        self.checkers_pos[cur_player].add(dest_pos)
+
+        # Update history
+        self._board = np.concatenate(cur_board, self._board)[:, :, :NUM_HIST_MOVES]
 
         return self.check_win()
 

@@ -40,7 +40,7 @@ class Game:
     def start(self):
         while True:
             move_from, move_to = self.cur_player.decide_move(self.board)    # Get move from player
-            winner = self.board.place(move_from, move_to)                   # Make the move on board and check winner
+            winner = self.board.place(self.cur_player.player_num, move_from, move_to)  # Make the move on board and check winner
             if winner:
                 break
             self.swap_players()
