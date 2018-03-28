@@ -56,15 +56,15 @@ class Board:
         return PLAYER_ONE if one_win else PLAYER_TWO
 
 
-    def visualise(self, gap_btw_checkers=3):
-        """ Prints the current board for human visualisation """
-        print('=' * 75)
-        print('Current Status:\n')
+	def visualise(self, cur_player=None, gap_btw_checkers=3):
+		""" Prints the current board for human visualisation """
+		print('=' * 75)
+		print('Current Status:' + ' ' * 40 + 'Current Player: {}\n'.format(cur_player))
 
-        cur_board = self._board[:, :, 0]    # Get current board from the topmost layer
-        visual_width = BOARD_WIDTH * (gap_btw_checkers + 1) - gap_btw_checkers
-        visual_height = BOARD_HEIGHT * 2 - 1    # Dimensions for visualisation
-        leading_spaces = visual_width // 2
+		cur_board = self._board[:, :, 0]        # Get current board from the topmost layer
+		visual_width = BOARD_WIDTH * (gap_btw_checkers + 1) - gap_btw_checkers
+		visual_height = BOARD_HEIGHT * 2 - 1    # Dimensions for visualisation
+		leading_spaces = visual_width // 2
 
         for i in range(1, visual_height + 1):
             # Number of slots in the board row

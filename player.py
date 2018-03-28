@@ -27,9 +27,7 @@ class HumanPlayer:
         """
 
         # First print game info
-        print('='*75)
-        print('Current player: {}'.format(self._player_num))
-        board.visualise()
+        board.visualise(cur_player=self._player_num)
 
         # TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
         # FIXME: Use "board.valid_moves()" to check for human move validity
@@ -38,6 +36,8 @@ class HumanPlayer:
         # x = the row number on visualised board, y = the position of the checker in that row from left
         from_coord = map(int, input('Which checker to move? Specify row number and count from left, separated by a space: ').split())
         to_coord = map(int, input('where to move this checker? Specify row number and count from left, separated by a space: ').split())
+
+        # NOTE: the above `map` objects "from_coord", "to_coord" can only be used once
 
         return board_utils.human_coord_to_np_index(tuple(from_coord)), \
                board_utils.human_coord_to_np_index(tuple(to_coord))

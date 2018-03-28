@@ -43,8 +43,9 @@ class Game:
             winner = self.board.place(move_from, move_to)                   # Make the move on board and check winner
             if winner:
                 break
-            swap_players()
+            self.swap_players()
 
+        self.board.visualise()
         print('Player {} wins!'.format(winner))
 
         # TODO: once we have a winner, start network training procedure here
