@@ -12,6 +12,9 @@ def human_coord_to_np_index(coord):
     np_j = human_col - 1 - min(0, human_row - BOARD_WIDTH)
     return np_i, np_j
 
+def is_valid_pos(i, j):
+    return i >= 0 and i < BOARD_HEIGHT and j >= 0 and j < BOARD_WIDTH
+
 if __name__ == '__main__':
     """
     If you're running this file directly, you can put some

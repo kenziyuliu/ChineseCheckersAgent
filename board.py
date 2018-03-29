@@ -12,6 +12,27 @@ class Board:
                                          [1, 0, 0, 0, 0, 0, 0],
                                          [1, 1, 0, 0, 0, 0, 0],
                                          [1, 1, 1, 0, 0, 0, 0]])
+        # ==Direction Map==
+        #
+        #   NW north
+        #  west     east
+        #      south SE
+        self.direction_one_step = [
+            (-1, 0), # north
+            (0, 1), # east
+            (1, 1), # southeast
+            (1, 0), # south
+            (0, -1), # west
+            (-1, -1) # northwest
+        ]
+        self.direction_jump = [
+            (-2, 0), # north
+            (0, 2), # east
+            (2, 2), # southeast
+            (2, 0), # south
+            (0, -2), # west
+            (-2, -2) # northwest
+        ]
 
         self.checkers_pos = [[],
                             set([(BOARD_HEIGHT-1, 0), (BOARD_HEIGHT-2, 0), (BOARD_HEIGHT-1, 1),
@@ -82,73 +103,54 @@ class Board:
         curr_row, curr_col = checker_pos
         result = []
         # map to check already explored moves
-        checkMap = np.zeros((BOARD_WIDTH, BOARD_HEIGHT), dtype='uint8')
+        check_map = np.zeros((BOARD_WIDTH, BOARD_HEIGHT), dtype='uint8')
         result.append((curr_row, curr_col))
-        checkMap[curr_row][curr_col] = 1
-
-        # check direct up move
-        if (curr_row != 0 and self.board[curr_row-1, curr_col, 0] == 0):
-            result.append((curr_row-1, curr_col))
-            checkMap[curr_row-1][curr_col] = 1
-        # check direct down move
-        if (curr_row != BOARD_HEIGHT-1 and self.board[curr_row+1, curr_col, 0] == 0):
-            result.append((curr_row+1, curr_col))
-            checkMap[curr_row+1][curr_col] = 1
-        # check direct left move
-        if (curr_col !=0 and self.board[curr_row, curr_col-1, 0] == 0):
-            result.append((curr_row, curr_col-1))
-            checkMap[curr_row][curr_col-1] = 1
-        # check direct right move
-        if (curr_col != BOARD_WIDTH-1 and self.board[curr_row, curr_col+1, 0] == 0):
-            result.append((curr_row, curr_col+1))
-            checkMap[curr_row][curr_col+1] = 1
-        # check direct upLeft move
-        if (curr_row != 0 and curr_col !=0 and self.board[curr_row-1, curr_col-1, 0] == 0):
-            result.append((curr_row-1, curr_col-1))
-            checkMap[curr_row-1][curr_col-1] = 1
-        # check direct downRight move
-        if (curr_row != BOARD_HEIGHT-1 and curr_col != BOARD_WIDTH-1 and self.board[curr_row+1, curr_col+1, 0] == 0):
-            result.append((curr_row+1, curr_col+1))
-            checkMap[curr_row+1][curr_col+1] = 1
+        check_map[curr_row][curr_col] = 1
+        # expand to each direction without jump
+        for walk_dir in self.direction_one_step:
+            row_inc, col_inc = walk_dir
+            row = curr_row + row_inc
+            col = curr_col + col_inc
+            if not board_utils.is_valid_pos(row, col):
+                continue
+            if self._board[:, :, 0][row][col] == 0:
+                result.append((row, col))
+                check_map[row][col] = 1
         # check continous jump moves
-        self.jump_recursion_helper(result, checkMap, (curr_row, curr_col))
+        self.jump_recursion_helper(result, check_map, (curr_row, curr_col))
         return result
 
 
-    def jump_recursion_helper(self, valid_moves_set, checkMap, position):
+    def jump_recursion_helper(self, valid_moves_set, check_map, position):
         """ Add all recursive jumping moves into the valid_moves_set"""
         curr_row, curr_col = position
-        # check up jump and recursion
-        if (curr_row-2 >= 0 and checkMap[curr_row-2][curr_col] == 0 and self.board[curr_row-1, curr_col, 0] != 0 and self.board[curr_row-2, curr_col, 0] == 0):
-            valid_moves_set.append((curr_row-2, curr_col))
-            checkMap[curr_row-2][curr_col] = 1
-            self.jump_recursion_helper(valid_moves_set, checkMap, (curr_row-2, curr_col))
-        # check down jump and recursion
-        if (curr_row+2 <= BOARD_HEIGHT-1 and checkMap[curr_row+2][curr_col] == 0 and self.board[curr_row+1, curr_col, 0] != 0 and self.board[curr_row+2, curr_col, 0] == 0):
-            valid_moves_set.append((curr_row+2, curr_col))
-            checkMap[curr_row+2][curr_col] = 1
-            self.jump_recursion_helper(valid_moves_set, checkMap, (curr_row+2, curr_col))
-        # check left jump and recursion
-        if (curr_col-2 >= 0 and checkMap[curr_row][curr_col-2] == 0 and self.board[curr_row, curr_col-1, 0] != 0 and self.board[curr_row, curr_col-2, 0] == 0):
-            valid_moves_set.append((curr_row, curr_col-2))
-            checkMap[curr_row][curr_col-2] = 1
-            self.jump_recursion_helper(valid_moves_set, checkMap, (curr_row, curr_col-2))
-        # check right jump and recursion
-        if (curr_col+2 <= BOARD_WIDTH-1 and checkMap[curr_row][curr_col+2] == 0 and self.board[curr_row, curr_col+1, 0] != 0 and self.board[curr_row, curr_col+2, 0] == 0):
-            valid_moves_set.append((curr_row, curr_col+2))
-            checkMap[curr_row][curr_col+2] = 1
-            self.jump_recursion_helper(valid_moves_set, checkMap, (curr_row, curr_col+2))
-        # check upLeft jump and recursion
-        if (curr_row-2 >= 0 and curr_col-2 >= 0 and checkMap[curr_row-2][curr_col-2] == 0 and self.board[curr_row-1, curr_col-1, 0] != 0 and self.board[curr_row-2, curr_col-2, 0] == 0):
-            valid_moves_set.append((curr_row-2, curr_col-2))
-            checkMap[curr_row-2][curr_col-2] = 1
-            self.jump_recursion_helper(valid_moves_set, checkMap, (curr_row-2, curr_col-2))
-        # check downRight jump and recursion
-        if (curr_row+2 <= BOARD_HEIGHT-1 and curr_col+2 <= BOARD_WIDTH-1 and checkMap[curr_row+2][curr_col+2] == 0 and self.board[curr_row+1, curr_col+1, 0] != 0 and self.board[curr_row+2, curr_col+2, 0] == 0):
-            valid_moves_set.append((curr_row+2, curr_col+2))
-            checkMap[curr_row+2][curr_col+2] = 1
-            self.jump_recursion_helper(valid_moves_set, checkMap, (curr_row+2, curr_col+2))
-
+        # expand with jump
+        for walk_dir, jump_dir in zip(self.direction_one_step, self.direction_jump):
+            row_inc_one, col_inc_one = walk_dir
+            row_one = curr_row + row_inc_one
+            col_one = curr_col + col_inc_one
+            row_inc_jump, col_inc_jump = jump_dir
+            row_jump = curr_row + row_inc_jump
+            col_jump = curr_col + col_inc_jump
+            # check whether the one step is in boundary
+            if not board_utils.is_valid_pos(row_one, col_one):
+                continue
+            # check whether the one step is occupied
+            if self.board[row_one, col_one, 0] == 0:
+                continue
+            # check whether the two step is in boundary
+            if not board_utils.is_valid_pos(row_jump, col_jump):
+                continue
+            # check whether the two step is occupied
+            if self.board[row_jump, col_jump, 0] != 0:
+                continue
+            # check whether the destination is occupied
+            if check_map[row_jump][col_jump] == 1:
+                continue
+            # store moves
+            valid_moves_set.append((row_jump, col_jump))
+            check_map[row_jump][col_jump] = 1
+            self.jump_recursion_helper(valid_moves_set, check_map, (row_jump, col_jump))
 
     def valid_moves(self, cur_player):
         """ Returns the list of valid moves given the current player """
@@ -169,7 +171,7 @@ class Board:
         self.checkers_pos[cur_player].add(dest_pos)
 
         # Update history
-        self._board = np.concatenate(cur_board, self._board)[:, :, :NUM_HIST_MOVES]
+        self._board = np.concatenate((cur_board.reshape(7,7,1), self._board), axis=2)[:, :, :NUM_HIST_MOVES]
 
         return self.check_win()
 
@@ -187,4 +189,3 @@ if __name__ == '__main__':
     # print(board.check_win())
     # print(board.check_win())
     # for i in range(50000):
-
