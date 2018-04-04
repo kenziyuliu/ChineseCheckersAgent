@@ -16,6 +16,7 @@ class Game:
 
         self.board = Board()
 
+
     def get_player_types(self):
         p1_type = p2_type = ''
         while 1:
@@ -48,7 +49,9 @@ class Game:
         self.board.visualise()
         print('Player {} wins!'.format(winner))
 
-        # TODO: once we have a winner, start network training procedure here
+        # TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+        # TODO: once we have a winner, start network training procedure here    TODO
+        # TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
 
 
 if __name__ == '__main__':

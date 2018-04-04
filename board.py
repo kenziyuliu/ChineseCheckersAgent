@@ -1,6 +1,7 @@
 import numpy as np
 from constants import *
 import board_utils
+import operator
 
 class Board:
     def __init__(self):
@@ -12,27 +13,19 @@ class Board:
                                          [1, 0, 0, 0, 0, 0, 0],
                                          [1, 1, 0, 0, 0, 0, 0],
                                          [1, 1, 1, 0, 0, 0, 0]])
-        # ==directions Map==
+        # == Directions Map ==
         #
         #   NW north
         #  west     east
         #      south SE
         self.directions = [
-            (-1, 0), # north
-            (0, 1), # east
-            (1, 1), # southeast
-            (1, 0), # south
-            (0, -1), # west
-            (-1, -1) # northwest
+            (-1, 0),    # north
+            (0, 1),     # east
+            (1, 1),     # southeast
+            (1, 0),     # south
+            (0, -1),    # west
+            (-1, -1)    # northwest
         ]
-        # self.directions_jump = [
-        #     (-2, 0), # north
-        #     (0, 2), # east
-        #     (2, 2), # southeast
-        #     (2, 0), # south
-        #     (0, -2), # west
-        #     (-2, -2) # northwest
-        # ]
 
         self.checkers_pos = [[],
                             set([(BOARD_HEIGHT-1, 0), (BOARD_HEIGHT-2, 0), (BOARD_HEIGHT-1, 1),
@@ -78,7 +71,9 @@ class Board:
 
 
     def visualise(self, cur_player=None, gap_btw_checkers=3):
-        """ Prints the current board for human visualisation """
+        """
+        Prints the current board for human visualisation
+        """
         print('=' * 75)
         print('Current Status:' + ' ' * 40 + 'Current Player: {}\n'.format(cur_player))
 
@@ -99,74 +94,80 @@ class Board:
 
 
     def valid_checker_moves(self, cur_player, checker_pos):
-        """ Returns all valid moves for one checker piece"""
-        curr_row, curr_col = checker_pos
+        """
+        Returns all valid moves for one checker piece
+        """
         result = []
         # map to check already explored moves
         check_map = np.zeros((BOARD_WIDTH, BOARD_HEIGHT), dtype='uint8')
-        result.append((curr_row, curr_col))
-        check_map[curr_row][curr_col] = 1
+        result.append(checker_pos)
+        check_map[checker_pos] = 1
         # expand to each directions without jump
         for walk_dir in self.directions:
-            row_inc, col_inc = walk_dir
-            row = curr_row + row_inc
-            col = curr_col + col_inc
+            (row, col) = tuple(map(operator.add, checker_pos, walk_dir))
             if not board_utils.is_valid_pos(row, col):
                 continue
-            if self._board[:, :, 0][row][col] == 0:
+            if self._board[row, col, 0] == 0:
                 result.append((row, col))
-                check_map[row][col] = 1
+                check_map[row, col] = 1
+
         # check continous jump moves
-        self.jump_recursion_helper(result, check_map, (curr_row, curr_col))
+        self.valid_checker_jump_moves(result, check_map, checker_pos)
         return result
 
 
-    def jump_recursion_helper(self, valid_moves_set, check_map, position):
-        """ Add all recursive jumping moves into the valid_moves_set"""
-        curr_row, curr_col = position
+    def valid_checker_jump_moves(self, valid_moves, check_map, checker_pos):
+        """
+        Add all recursive jumping moves into the list of valid moves
+        """
+        curr_row, curr_col = checker_pos
         # expand with jump
         for walk_dir in self.directions:
-            row_inc, col_inc = walk_dir
             step = 1
-            # pointer row and col
-            row = curr_row + row_inc
-            col = curr_col + col_inc
+            row_inc, col_inc = walk_dir
+            row, col = curr_row + row_inc, curr_col + col_inc
             valid_pos = True
-            # go along the directions until touch checker recording steps
+
+            # Go along the direction to find the first checker and record steps
             while True:
                 if not board_utils.is_valid_pos(row, col):
                     valid_pos = False
                     break
                 if self.board[row, col, 0] != 0:
                     break
-                step +=1
+                step += 1
                 row += row_inc
                 col += col_inc
+
             if not valid_pos:
                 continue
-            # continue to go along the directions in mirror steps
+
+            # Continue in the direction to find the mirror move
             for i in range(step):
                 row += row_inc
                 col += col_inc
-                if not board_utils.is_valid_pos(row, col):
+                if not board_utils.is_valid_pos(row, col) or self.board[row, col, 0] != 0:
                     valid_pos = False
                     break
-                if self.board[row, col, 0] != 0:
-                    valid_pos = False
-                    break
+
             if not valid_pos:
                 continue
+
             # get the row and col ready to jump
             # check whether the destination is visited
-            if check_map[row][col] == 1:
+            if check_map[row, col] == 1:
                 continue
-            # store moves
-            valid_moves_set.append((row, col))
-            check_map[row][col] = 1
-            self.jump_recursion_helper(valid_moves_set, check_map, (row, col))
 
-    def valid_moves(self, cur_player):
-        """ Returns the list of valid moves given the current player """
+            # store moves
+            valid_moves.append((row, col))
+            check_map[row][col] = 1
+            self.valid_checker_jump_moves(valid_moves, check_map, (row, col))
+
+
+    def get_valid_moves(self, cur_player):
+        """
+        Returns the collection of valid moves given the current player
+        """
         valid_moves_set = {}
         for checker_pos in self.checkers_pos[cur_player]:
             valid_moves_set[checker_pos] = self.valid_checker_moves(cur_player, checker_pos)
@@ -174,8 +175,9 @@ class Board:
 
 
     def place(self, cur_player, origin_pos, dest_pos):
-        """ Makes a move with array indices """
-        # TODO FIXME: Record history to board!
+        """
+        Makes a move with array indices
+        """
         cur_board = np.copy(self._board[:, :, 0])
         cur_board[origin_pos], cur_board[dest_pos] = cur_board[dest_pos], cur_board[origin_pos]
 
@@ -184,12 +186,15 @@ class Board:
         self.checkers_pos[cur_player].add(dest_pos)
 
         # Update history
-        self._board = np.concatenate((cur_board.reshape(7,7,1), self._board), axis=2)[:, :, :NUM_HIST_MOVES]
+        self._board = np.concatenate((np.expand_dims(cur_board, axis=2), self._board[:, :, :NUM_HIST_MOVES - 1]), axis=2)
 
         return self.check_win()
 
 
 if __name__ == '__main__':
+    """
+    Put board.py testcases here
+    """
     board = Board()
 
     # print(board.board[board.checker_pos[PLAYER_ONE][0][0],
@@ -198,7 +203,7 @@ if __name__ == '__main__':
     # print(board.board[6, 0, 0])
     # print(board.board)
     # board.print_board()
-    print(board.valid_moves(1))
+    print(board.get_valid_moves(1))
     # print(board.check_win())
     # print(board.check_win())
     # for i in range(50000):

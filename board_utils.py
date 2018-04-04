@@ -17,8 +17,7 @@ def is_valid_pos(i, j):
 
 if __name__ == '__main__':
     """
-    If you're running this file directly, you can put some
-    test cases here.
+    Put board_utils.py test cases here.
     """
     print(human_coord_to_np_index((12, 1)))
     print(human_coord_to_np_index((10, 1)))
