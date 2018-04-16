@@ -7,3 +7,5 @@ NUM_CHECKERS = (1 + ROWS_OF_CHECKERS) * ROWS_OF_CHECKERS // 2
 NUM_DIRECTIONS = 6
 BOARD_WIDTH = BOARD_HEIGHT = ROWS_OF_CHECKERS * 2 + 1
 NUM_HIST_MOVES = 3      # Number of history moves to keep
+
+TYPES_OF_PLAYERS = ['h', 'g', 'a']
