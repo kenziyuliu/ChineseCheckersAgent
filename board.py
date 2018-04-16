@@ -27,11 +27,11 @@ class Board:
             (-1, -1)    # northwest
         ]
 
-        self.checkers_pos = [[],
-                            set([(BOARD_HEIGHT-1, 0), (BOARD_HEIGHT-2, 0), (BOARD_HEIGHT-1, 1),
-                                 (BOARD_HEIGHT-3, 0), (BOARD_HEIGHT-2, 1), (BOARD_HEIGHT-1, 2)]),
-                            set([(0, BOARD_WIDTH-1), (1, BOARD_WIDTH-1), (0, BOARD_WIDTH-2),
-                                 (2, BOARD_WIDTH-1), (1, BOARD_WIDTH-2), (0, BOARD_WIDTH-3)])]
+        self.checkers_pos = [{},
+                            {0: (BOARD_HEIGHT-1, 0), 1: (BOARD_HEIGHT-2, 0), 2: (BOARD_HEIGHT-1, 1),
+                                 3: (BOARD_HEIGHT-3, 0), 4: (BOARD_HEIGHT-2, 1), 5: (BOARD_HEIGHT-1, 2)},
+                            {0: (0, BOARD_WIDTH-1), 1: (1, BOARD_WIDTH-1), 2: (0, BOARD_WIDTH-2),
+                                 3: (2, BOARD_WIDTH-1), 4: (1, BOARD_WIDTH-2), 5: (0, BOARD_WIDTH-3)}]
 
     @property
     def board(self):
@@ -172,7 +172,7 @@ class Board:
         Returns the collection of valid moves given the current player
         """
         valid_moves_set = {}
-        for checker_pos in self.checkers_pos[cur_player]:
+        for checker_pos in self.checkers_pos[cur_player].values():
             valid_moves_set[checker_pos] = self.valid_checker_moves(cur_player, checker_pos)
         return valid_moves_set
 
@@ -185,8 +185,10 @@ class Board:
         cur_board[origin_pos], cur_board[dest_pos] = cur_board[dest_pos], cur_board[origin_pos]
 
         # Move the checker
-        self.checkers_pos[cur_player].remove(origin_pos)
-        self.checkers_pos[cur_player].add(dest_pos)
+        for checker_num, checker_pos in self.checkers_pos[cur_player].items():
+            if (checker_pos == origin_pos):
+                self.checkers_pos[cur_player][checker_num] = dest_pos
+        
 
         # Update history
         self._board = np.concatenate((np.expand_dims(cur_board, axis=2), self._board[:, :, :NUM_HIST_MOVES - 1]), axis=2)
