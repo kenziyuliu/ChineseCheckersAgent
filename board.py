@@ -100,9 +100,9 @@ class Board:
         result = []
         # map to check already explored moves
         check_map = np.zeros((BOARD_WIDTH, BOARD_HEIGHT), dtype='uint8')
+        # expand to each directions without jump
         result.append(checker_pos)
         check_map[checker_pos] = 1
-        # expand to each directions without jump
         for walk_dir in self.directions:
             (row, col) = tuple(map(operator.add, checker_pos, walk_dir))
             if not board_utils.is_valid_pos(row, col):
@@ -112,7 +112,10 @@ class Board:
                 check_map[row, col] = 1
 
         # check continous jump moves
+        self.board[checker_pos[0], checker_pos[1]] = 0;
         self.valid_checker_jump_moves(result, check_map, checker_pos)
+        self.board[checker_pos[0], checker_pos[1]] = cur_player;
+        result.remove(checker_pos)
         return result
 
 
