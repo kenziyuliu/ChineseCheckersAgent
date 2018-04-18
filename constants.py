@@ -8,4 +8,5 @@ NUM_DIRECTIONS = 6
 BOARD_WIDTH = BOARD_HEIGHT = ROWS_OF_CHECKERS * 2 + 1
 NUM_HIST_MOVES = 3      # Number of history moves to keep
 
+PROGRESS_MOVE_LIMIT = 50
 TYPES_OF_PLAYERS = ['h', 'g', 'a']
