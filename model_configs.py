@@ -1,0 +1,9 @@
+from keras import regularizers
+
+BATCH_SIZE = 32
+REG_CONST = 0.0001
+LEARNING_RATE = 0.03
+# NUM_FILTERS = 24
+NUM_RESIDUAL_BLOCKS = 20
+
+REGULARIZER = regularizers.l2(REG_CONST)
