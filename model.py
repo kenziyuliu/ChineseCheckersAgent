@@ -8,14 +8,13 @@ from constants import *
 from loss import softmax_cross_entropy_with_logits
 import model_configs
 
-
 class Model:
     def __init__(self, input_dim, filters):
         self.input_dim = input_dim
         self.filters = filters
 
     def predict(self, input_board):
-        return self.model.predict(input_board)
+        return self.model.predict(np.expand_dims(input_board, axis=0))
 
     def save(self, version):
         self.model.save('version{0:0>4}'.format(version) + '.h5')
@@ -105,6 +104,7 @@ class Model:
 
         return model_input
 
+
     @staticmethod
     def encode_checker_index(checker_id, coord):
         """
@@ -127,6 +127,7 @@ class Model:
         pos = offset // BOARD_WIDTH, offset % BOARD_WIDTH
         return checker_id, pos
 
+
 class ResidualCNN(Model):
     def __init__(self, input_dim, filters):
         Model.__init__(self, input_dim, filters)
@@ -139,10 +140,10 @@ class ResidualCNN(Model):
         for _ in range(model_configs.NUM_RESIDUAL_BLOCKS):
             x = self.residual_block(x, self.filters, 3, model_configs.REGULARIZER)
 
-        vh = self.value_head(x, model_configs.REGULARIZER)
-        ph = self.policy_head(x, model_configs.REGULARIZER)
+        value = self.value_head(x, model_configs.REGULARIZER)
+        policy = self.policy_head(x, model_configs.REGULARIZER)
 
-        model = KerasModel(inputs=[main_input], outputs=[vh, ph])
+        model = KerasModel(inputs=[main_input], outputs=[policy, value])
         model.compile(loss={"value_head":"mean_squared_error", "policy_head":softmax_cross_entropy_with_logits},
                         optimizer=SGD(lr=model_configs.LEARNING_RATE),
                         loss_weights={"value_head": 0.5, "policy_head": 0.5})
@@ -202,7 +203,7 @@ class ResidualCNN(Model):
                 kernel_regularizer=regularizer,
                 name="policy_head")(x)
         return x
-      
+
 if __name__ == '__main__':
     """
     Test cases here
@@ -212,13 +213,10 @@ if __name__ == '__main__':
         checker_pos.append(Model.decode_checker_index(i))
         # print(Model.decode_checker_index(i))
 
-
     count = 0
     for checker_id, pos in checker_pos:
         assert count == Model.encode_checker_index(checker_id, pos)
         # print(Model.encode_checker_index(checker_id, pos))
-        
         count += 1
 
     model = ResidualCNN(input_dim=(7,7,7), filters=24)
-
