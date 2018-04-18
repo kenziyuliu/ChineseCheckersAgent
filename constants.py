@@ -10,3 +10,5 @@ NUM_HIST_MOVES = 3      # Number of history moves to keep
 
 PROGRESS_MOVE_LIMIT = 50
 TYPES_OF_PLAYERS = ['h', 'g', 'a']
+TREE_TAU = 1
+REWARD = {"lose" : -1, "draw" : 0, "win" : 1}
