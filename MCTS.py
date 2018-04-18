@@ -1,6 +1,6 @@
 import numpy as np
 import board
-import model
+from model import *
 import copy
 import random
 from constants import *
@@ -10,7 +10,7 @@ class Node:
 		self.state = state
 		self.currPlayer = currPlayer
 		self.edges = []
-		self.pai = 0
+		self.pi = np.zeros(NUM_CHECKERS * BOARD_WIDTH * BOARD_HEIGHT, dtype='float64')
 
 	def isLeaf(self):
 		if len(self.edges) > 0:
@@ -35,11 +35,12 @@ class Edge:
 
 class MCTS():
 
-	def __init__(self, root, cpuct, num_itr):
+	def __init__(self, root, cpuct, num_itr, model):
 		self.root = root
 		self.tree = {}
 		self.cpuct = cpuct
 		self.num_itr = num_itr
+		self.model = model
 
 	def moveToLeaf(self):
 
@@ -84,15 +85,15 @@ class MCTS():
 				edge.stats['Q'] = edge.stats['W'] / edge.stats['N']
 			return
 
-		# p_evaluated, v_evaluated = model.predict(leafNode.state)
-		p_evaluated = np.random.rand(6*49)
-		v_evaluated = random.uniform(-1, 1)
+		p_evaluated, v_evaluated = self.model.predict(Model.to_model_input(leafNode.state.board, leafNode.currPlayer))
+		p_evaluated = p_evaluated.squeeze()
+
 		valid_actions = leafNode.state.get_valid_moves(leafNode.currPlayer)
 
 		for checker_piece_pos, action_set in valid_actions.items():
 			checker_piece_id = leafNode.state.checkers_id[leafNode.currPlayer][checker_piece_pos]
 			for destination_pos in action_set:
-				prior_index = model.Model.encode_checker_index(checker_piece_id, destination_pos)
+				prior_index = Model.encode_checker_index(checker_piece_id, destination_pos)
 				next_player = PLAYER_ONE + PLAYER_TWO - leafNode.currPlayer
 				next_state = copy.deepcopy(leafNode.state)
 				newFromPos = leafNode.state.checkers_pos[leafNode.currPlayer][checker_piece_id]
@@ -123,21 +124,23 @@ class MCTS():
 
 			chosen_edges = []
 			maxN = float("-inf")
-			sumPai = 0
+			sumPi = 0
 
 			for edge in self.root.edges:
 				maxN = max(maxN, edge.stats['N'])
-				sumPai += edge.stats['N'] ** (1/TREE_TAU)
+				sumPi += edge.stats['N'] ** (1/TREE_TAU)
 
 			for edge in self.root.edges:
 				if edge.stats['N'] == maxN:
 					chosen_edges.append(edge)
+				checker_piece_id = self.root.state.checkers_id[edge.fromPos]
+				neural_net_index = Model.encode_checker_index(checker_piece_id, edge.toPos)
+				self.root.pi[neural_net_index] = edge.stats['N'] ** (1/TREE_TAU) / sumPi
 
 			sampled_edge = random.choice(chosen_edges)
 
 			self.root.edges = []
 			self.root.edges.append(sampled_edge)
-			self.root.pai = (sampled_edge.stats['N'] ** (1/TREE_TAU)) / sumPai
 
 			actual_play_history.append(self.root)
 
@@ -164,7 +167,6 @@ class MCTS():
 				break
 
 			if self.root.state.check_win() != 0:
-				actual_play_history.append(self.root)
 				break
 
 		return actual_play_history, self.root.state.check_win()
@@ -177,11 +179,11 @@ class MCTS():
 
 		chosen_edges = []
 		maxN = float("-inf")
-		sumPai = 0
+		sumPi = 0
 
 		for edge in self.root.edges:
 			maxN = max(maxN, edge.stats['N'])
-			sumPai += edge.stats['N'] ** (1/TREE_TAU)
+			sumPi += edge.stats['N'] ** (1/TREE_TAU)
 
 		for edge in self.root.edges:
 			if edge.stats['N'] == maxN:
@@ -193,13 +195,10 @@ class MCTS():
 if __name__ == '__main__':
 	count = 0
 	board = board.Board()
-	while True:
-		node = Node(board, 1)
-		tree = MCTS(node, 1, 5)
-		if tree.selfPlay()[1] != 0:
-			break
-		count += 1
-		print("Calulating...")
+	node = Node(board, 1)
+	model = ResidualCNN(input_dim=(7,7,7), filters=24)
+	tree = MCTS(node, 1, 5, model)
+	print(tree.search())
 
 			
 
