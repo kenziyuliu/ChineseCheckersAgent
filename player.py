@@ -87,7 +87,6 @@ class GreedyPlayer:
         pick_start, pick_end = random.choice(filtered_best_moves)
 
         if verbose:
-            board.visualise(self.player_num)
             print('GreedyPlayer moved from {} to {}'.format(pick_start, pick_end))
 
         return board_utils.human_coord_to_np_index(pick_start), \

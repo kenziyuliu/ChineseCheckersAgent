@@ -15,12 +15,12 @@ class Board:
         """
         self.board = np.zeros((BOARD_WIDTH, BOARD_HEIGHT, NUM_HIST_MOVES), dtype='uint8')  # Initialize empty board
         self.board[:, :, 0] = np.array([[0, 0, 0, 0, 2, 2, 2],
-                                         [0, 0, 0, 0, 0, 2, 2],
-                                         [0, 0, 0, 0, 0, 0, 2],
-                                         [0, 0, 0, 0, 0, 0, 0],
-                                         [1, 0, 0, 0, 0, 0, 0],
-                                         [1, 1, 0, 0, 0, 0, 0],
-                                         [1, 1, 1, 0, 0, 0, 0]])
+                                        [0, 0, 0, 0, 0, 2, 2],
+                                        [0, 0, 0, 0, 0, 0, 2],
+                                        [0, 0, 0, 0, 0, 0, 0],
+                                        [1, 0, 0, 0, 0, 0, 0],
+                                        [1, 1, 0, 0, 0, 0, 0],
+                                        [1, 1, 1, 0, 0, 0, 0]])
 
         # == Directions Map ==
         #
@@ -36,11 +36,17 @@ class Board:
             (-1, -1)    # northwest
         ]
 
-        self.checkers_pos = [{},
-                            {0: (BOARD_HEIGHT-1, 0), 1: (BOARD_HEIGHT-2, 0), 2: (BOARD_HEIGHT-1, 1),
-                                 3: (BOARD_HEIGHT-3, 0), 4: (BOARD_HEIGHT-2, 1), 5: (BOARD_HEIGHT-1, 2)},
-                            {0: (0, BOARD_WIDTH-1), 1: (1, BOARD_WIDTH-1), 2: (0, BOARD_WIDTH-2),
-                                 3: (2, BOARD_WIDTH-1), 4: (1, BOARD_WIDTH-2), 5: (0, BOARD_WIDTH-3)}]
+        self.checkers_pos = [None,
+                             {0: (BOARD_HEIGHT-1, 0), 1: (BOARD_HEIGHT-2, 0), 2: (BOARD_HEIGHT-1, 1),
+                              3: (BOARD_HEIGHT-3, 0), 4: (BOARD_HEIGHT-2, 1), 5: (BOARD_HEIGHT-1, 2)},
+                             {0: (0, BOARD_WIDTH-1), 1: (1, BOARD_WIDTH-1), 2: (0, BOARD_WIDTH-2),
+                              3: (2, BOARD_WIDTH-1), 4: (1, BOARD_WIDTH-2), 5: (0, BOARD_WIDTH-3)}]
+
+        self.checkers_id = [None,
+                            {(BOARD_HEIGHT-1, 0): 0, (BOARD_HEIGHT-2, 0): 1, (BOARD_HEIGHT-1, 1): 2,
+                             (BOARD_HEIGHT-3, 0): 3, (BOARD_HEIGHT-2, 1): 4, (BOARD_HEIGHT-1, 2): 5},
+                            {(0, BOARD_WIDTH-1): 0, (1, BOARD_WIDTH-1): 1, (0, BOARD_WIDTH-2): 2,
+                             (2, BOARD_WIDTH-1): 3, (1, BOARD_WIDTH-2): 4, (0, BOARD_WIDTH-3): 5}]
 
 
     def check_win(self):
@@ -181,10 +187,12 @@ class Board:
         cur_board = np.copy(self.board[:, :, 0])
         cur_board[origin_pos], cur_board[dest_pos] = cur_board[dest_pos], cur_board[origin_pos]
 
-        # Move the checker
-        for checker_num, checker_pos in self.checkers_pos[cur_player].items():
+        # Move the checker in both id->positon and position->id lookup
+        for checker_id, checker_pos in self.checkers_pos[cur_player].items():
             if checker_pos == origin_pos:
-                self.checkers_pos[cur_player][checker_num] = dest_pos
+                self.checkers_pos[cur_player][checker_id] = dest_pos
+
+        self.checkers_id[cur_player][dest_pos] = self.checkers_id[cur_player].pop(origin_pos)
 
         # Update history
         self.board = np.concatenate((np.expand_dims(cur_board, axis=2), self.board[:, :, :NUM_HIST_MOVES - 1]), axis=2)
