@@ -182,7 +182,6 @@ class MCTS():
 		for edge in self.root.edges:
 			maxN = max(maxN, edge.stats['N'])
 			sumPai += edge.stats['N'] ** (1/TREE_TAU)
-			print(edge.fromPos, edge.toPos)
 
 		for edge in self.root.edges:
 			if edge.stats['N'] == maxN:
