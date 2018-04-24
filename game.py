@@ -65,12 +65,8 @@ class Game:
         if self.verbose:
             self.board.visualise()
         print('Player {} wins!'.format(winner))
-
-        # TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
-        # TODO: once we have a winner, start network training procedure here    TODO
-        # TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
-
         return winner
+
 
 if __name__ == '__main__':
     print('Do not run this file directly!')

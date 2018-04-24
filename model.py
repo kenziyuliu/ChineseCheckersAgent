@@ -1,5 +1,5 @@
 from keras import regularizers
-from keras.optimizers import SGD
+from keras.optimizers import SGD, Adam
 from keras.models import load_model
 from keras.models import Model as KerasModel
 from keras.layers import Input, Conv2D, Flatten, Dense, BatchNormalization, LeakyReLU, add
@@ -136,10 +136,10 @@ class Model:
     @staticmethod
     def encode_checker_index(checker_id, coord):
         """
-        Convert a checker and its current position
+        Convert a checker and its destination
         to the model's output encoding.
         """
-        region = checker_id * (BOARD_WIDTH * BOARD_HEIGHT) # get the element-block in the model's output
+        region = checker_id * BOARD_WIDTH * BOARD_HEIGHT # get the element-block in the model's output
         offset = coord[0] * BOARD_WIDTH + coord[1]          # offset in this region
         return region + offset
 
@@ -148,18 +148,19 @@ class Model:
     def decode_checker_index(model_output_index):
         """
         Convert the index in the model's output vector
-        to the checker number and its position on board
+        to the checker number and its destination on board
         """
         checker_id = model_output_index // (BOARD_WIDTH * BOARD_HEIGHT)
         offset = model_output_index % (BOARD_WIDTH * BOARD_HEIGHT)
-        pos = offset // BOARD_WIDTH, offset % BOARD_WIDTH
-        return checker_id, pos
+        dest = offset // BOARD_WIDTH, offset % BOARD_WIDTH
+        return checker_id, dest
 
 
 class ResidualCNN(Model):
-    def __init__(self, input_dim, filters):
+    def __init__(self, input_dim=model_configs.INPUT_DIM, filters=model_configs.NUM_FILTERS):
         Model.__init__(self, input_dim, filters)
         self.model = self.build_model()
+
 
     def build_model(self):
         main_input = Input(shape=self.input_dim)
@@ -173,9 +174,10 @@ class ResidualCNN(Model):
 
         model = KerasModel(inputs=[main_input], outputs=[policy, value])
         model.compile(loss={"value_head":"mean_squared_error", "policy_head":softmax_cross_entropy_with_logits},
-                        optimizer=SGD(lr=model_configs.LEARNING_RATE),
+                        optimizer=Adam(lr=model_configs.LEARNING_RATE),
                         loss_weights={"value_head": 0.5, "policy_head": 0.5})
         return model
+
 
     def conv_layer(self, layer_input, filters, kernel_size, regularizer):
         return Conv2D(filters=filters,
@@ -185,6 +187,7 @@ class ResidualCNN(Model):
                         activation="linear",
                         kernel_regularizer=regularizer)(layer_input)
 
+
     def residual_block(self, block_input, filters, kernel_size, regularizer):
         x = self.conv_layer(block_input, filters, kernel_size, regularizer)
         x = BatchNormalization()(x)
@@ -193,8 +196,8 @@ class ResidualCNN(Model):
         x = BatchNormalization()(x)
         x = add([block_input, x])
         x = LeakyReLU()(x)
-
         return x
+
 
     def conv_block(self, block_input, filters, kernel_size, regularizer):
         x = self.conv_layer(block_input, filters, kernel_size, regularizer)
@@ -202,12 +205,13 @@ class ResidualCNN(Model):
         x = LeakyReLU()(x)
         return x
 
+
     def value_head(self, head_input, regularizer):
         x = self.conv_layer(head_input, filters=1, kernel_size=1, regularizer=regularizer)
         x = BatchNormalization()(x)
         x = LeakyReLU()(x)
         x = Flatten()(x)
-        x = Dense( self.filters,
+        x = Dense(self.filters,
                 use_bias=False,
                 activation="linear",
                 kernel_regularizer=regularizer)(x)
@@ -220,8 +224,9 @@ class ResidualCNN(Model):
                 name="value_head")(x)
         return x
 
+
     def policy_head(self, head_input, regularizer):
-        x = self.conv_layer(head_input, filters=2, kernel_size=1, regularizer=regularizer)
+        x = self.conv_layer(head_input, filters=16, kernel_size=1, regularizer=regularizer)
         x = BatchNormalization()(x)
         x = LeakyReLU()(x)
         x = Flatten()(x)
@@ -231,6 +236,7 @@ class ResidualCNN(Model):
                 kernel_regularizer=regularizer,
                 name="policy_head")(x)
         return x
+
 
 if __name__ == '__main__':
     """
@@ -247,4 +253,15 @@ if __name__ == '__main__':
         # print(Model.encode_checker_index(checker_id, pos))
         count += 1
 
-    model = ResidualCNN(input_dim=(7,7,7), filters=24)
+    # Test `to_model_input`
+    gameboard = Board()
+    gameboard.place(1, (5, 0), (3, 0))
+    board = gameboard.board
+    for i in range(board.shape[2]):
+        print(board[:, :, i])
+    model_input = Model.to_model_input(board, 1)
+    print('\n\n')
+    for i in range(model_input.shape[2]):
+        print(model_input[:, :, i])
+
+    model = ResidualCNN()

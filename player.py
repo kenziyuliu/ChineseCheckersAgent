@@ -109,8 +109,9 @@ class AiPlayer:
         :rtype A list of 2 tuples, specifying the move's FROM and TO.
         """
         node = Node(board, self.player_num)
-        tree = MCTS(node, C_PUCT, SIMULATION_ITR_NUM)
-        return tree.search() 
+        tree = MCTS(node, ResidualCNN())
+        pi, sampled_edge = tree.search()
+        return sampled_edge.fromPos, sampled_edge.toPos
 
 
 if __name__ == "__main__":
