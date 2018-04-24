@@ -48,6 +48,8 @@ class Board:
                             {(0, BOARD_WIDTH-1): 0, (1, BOARD_WIDTH-1): 1, (0, BOARD_WIDTH-2): 2,
                              (2, BOARD_WIDTH-1): 3, (1, BOARD_WIDTH-2): 4, (0, BOARD_WIDTH-3): 5}]
 
+        self.hist_moves = []
+
 
     def check_win(self):
         """
@@ -196,7 +198,9 @@ class Board:
 
         # Update history
         self.board = np.concatenate((np.expand_dims(cur_board, axis=2), self.board[:, :, :NUM_HIST_MOVES - 1]), axis=2)
-
+        if len(self.hist_moves) == (NUM_HIST_MOVES-1):
+            self.hist_moves = self.hist_moves [1:]
+        self.hist_moves.append((origin_pos,dest_pos))
         return self.check_win()
 
     def player_progress(self, player_id):

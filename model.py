@@ -81,23 +81,51 @@ class Model:
         Output:
             7 x 7 x 7. First 3 channel is player 1, next 3 channel is player 2, last channel is all 0 if player 1 is to play.
         """
+        # initialise the model input
         model_input = np.zeros((BOARD_WIDTH, BOARD_HEIGHT, NUM_HIST_MOVES * 2 + 1), dtype="uint8") # may change dtype afterwards
+        # get np array board
+        new_board = board.board
+        # get history moves
+        moves = board.hist_moves
+        # get opponent player
         op_player = PLAYER_ONE + PLAYER_TWO - cur_player
-        for channel in range(NUM_HIST_MOVES):
-            if not np.any(board[:, :, channel]): # timestep < 0
+
+        # firstly, construct the current state layers
+        op_layer = np.copy(new_board[:, :, 0])
+        cur_layer = np.copy(new_board[:, :, 0])
+        # construct layer for current player
+        np.putmask(cur_layer, cur_layer != cur_player, 0)
+        for checker_id, checker_pos in board.checkers_pos[cur_player].items():
+            cur_layer[checker_pos[0], checker_pos[1]] = checker_id + 1
+        # construct layer for opponent player
+        np.putmask(op_layer, op_layer != op_player, 0)
+        for checker_id, checker_pos in board.checkers_pos[op_player].items():
+            op_layer[checker_pos[0], checker_pos[1]] = checker_id + 1
+
+        model_input[:, :, 0] = np.copy(cur_layer)
+        model_input[:, :, 1] = np.copy(op_layer)
+
+        # construct the latter layers
+        moved_player = op_player
+        hist_index = len(moves) - 1
+        for channel in range(1, NUM_HIST_MOVES):
+            if not np.any(new_board[:, :, channel]): # timestep < 0
                 break
-
-            op_layer = np.copy(board[:, :, channel])
-            cur_layer = np.copy(board[:, :, channel])
-
-            np.putmask(cur_layer, cur_layer != cur_player, 0)
-            np.putmask(cur_layer, cur_layer == cur_player, 1)
-
-            np.putmask(op_layer, op_layer != op_player, 0)
-            np.putmask(op_layer, op_layer == op_player, 1)
-
-            model_input[:, :, channel * 2] = cur_layer
-            model_input[:, :, channel * 2 + 1] = op_layer
+            move = moves[hist_index]
+            orig_pos = move[0]
+            dest_pos = move[1]
+            if moved_player == cur_player:
+                value = cur_layer[dest_pos]
+                cur_layer[dest_pos] = cur_layer[orig_pos]
+                cur_layer[orig_pos] = value
+            else:
+                value = op_layer[dest_pos]
+                op_layer[dest_pos] = op_layer[orig_pos]
+                op_layer[orig_pos] = value
+            hist_index -= 1
+            moved_player = PLAYER_ONE + PLAYER_TWO - moved_player
+            model_input[:, :, channel * 2] = np.copy(cur_layer)
+            model_input[:, :, channel * 2 + 1] = np.copy(op_layer)
 
         if cur_player == 2: # player 2 to play
             model_input[:, :, NUM_HIST_MOVES * 2] = np.ones((BOARD_WIDTH, BOARD_HEIGHT), dtype="uint8")
