@@ -82,7 +82,7 @@ class MCTS:
                 edge.stats['Q'] = edge.stats['W'] / edge.stats['N']
             return
 
-        p_evaluated, v_evaluated = self.model.predict(Model.to_model_input(leafNode.state.board, leafNode.currPlayer))
+        p_evaluated, v_evaluated = self.model.predict(Model.to_model_input(leafNode.state, leafNode.currPlayer))
         p_evaluated = p_evaluated.squeeze()
 
         valid_actions = leafNode.state.get_valid_moves(leafNode.currPlayer)
