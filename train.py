@@ -20,8 +20,9 @@ Coordinates training procedure, including:
 
 class SelfPlayThread (threading.Thread):
 
-    def __init__(self, game_list, model, num_self_play):
+    def __init__(self, id, game_list, model, num_self_play):
         threading.Thread.__init__(self)
+        self.id = id
         self.game_list = game_list
         self.model = model
         self.num_self_play = num_self_play
@@ -34,6 +35,7 @@ class SelfPlayThread (threading.Thread):
             tree = MCTS(node, self.model)
             play_history, result = tree.selfPlay()
             thread_result.append((play_history, result))
+            print('Thread {} generated {} self-play games'.format(self.id, len(thread_result)))
 
         self.game_list += thread_result
 
@@ -42,7 +44,7 @@ def generate_self_play_in_parallel(model, num_self_play=NUM_SELF_PLAY, num_CPU=N
     game_list = []
     thread_list = []
     for i in range(num_CPU):
-        thread = SelfPlayThread(game_list, model, num_self_play // num_CPU)
+        thread = SelfPlayThread(i + 1, game_list, model, num_self_play // num_CPU)
         thread_list.append(thread)
         thread.start()
     for thread in thread_list:
@@ -56,7 +58,7 @@ def evolve(curr_model, num_self_play = NUM_SELF_PLAY):
         # Make the model ready for prediction before concurrent access of `predict()`
         curr_model.model._make_predict_function()
         training_data = generate_self_play_in_parallel(curr_model, num_self_play, NUM_THREADS)
-        print(len(training_data))
+        print('Number of training examples: {}'.format(len(training_data)))
         board_x, pi_y, v_y = preprocess_training_data(training_data)
         curr_model.model.fit(board_x, [pi_y, v_y], batch_size=BATCH_SIZE, epochs=EPOCHS)
         if count % 10 == 0:

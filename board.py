@@ -1,7 +1,9 @@
+from __future__ import print_function
 import numpy as np
 from constants import *
 import board_utils
 import operator
+
 
 class Board:
     def __init__(self):
