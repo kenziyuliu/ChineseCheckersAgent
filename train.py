@@ -58,8 +58,8 @@ def evolve(curr_model, num_self_play = NUM_SELF_PLAY):
         # Make the model ready for prediction before concurrent access of `predict()`
         curr_model.model._make_predict_function()
         training_data = generate_self_play_in_parallel(curr_model, num_self_play, NUM_THREADS)
-        print('Number of training examples: {}'.format(len(training_data)))
         board_x, pi_y, v_y = preprocess_training_data(training_data)
+        print('Number of training examples: {}'.format(len(board_x)))
         curr_model.model.fit(board_x, [pi_y, v_y], batch_size=BATCH_SIZE, epochs=EPOCHS)
         if count % 10 == 0:
             curr_model.save(count / 10)
