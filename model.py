@@ -7,6 +7,7 @@ from board import *
 from constants import *
 from loss import softmax_cross_entropy_with_logits
 import model_configs
+import os
 
 class Model:
     def __init__(self, input_dim, filters):
@@ -17,7 +18,9 @@ class Model:
         return self.model.predict(np.expand_dims(input_board, axis=0))
 
     def save(self, version):
-        self.model.save('version{0:0>4}'.format(version) + '.h5')
+        if not os.path.exists(SAVE_MODELS_DIR):
+            os.makedirs(SAVE_MODELS_DIR)
+        self.model.save('{0}version{1:0>4}'.format(SAVE_MODELS_DIR, version) + '.h5')
 
     def load(self, filepath):
         self.model = load_model(filepath)
@@ -265,3 +268,5 @@ if __name__ == '__main__':
         print(model_input[:, :, i])
 
     model = ResidualCNN()
+    # test for saving
+    model.save(1)
