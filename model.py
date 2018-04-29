@@ -23,7 +23,10 @@ class Model:
         self.model.save('{0}version{1:0>4}'.format(SAVE_MODELS_DIR, version) + '.h5')
 
     def load(self, filepath):
-        self.model = load_model(filepath)
+        self.model = load_model(
+            filepath,
+            custom_objects={'softmax_cross_entropy_with_logits': softmax_cross_entropy_with_logits}
+        )
         return self.model
 
     def visualise_layers(self):

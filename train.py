@@ -61,8 +61,7 @@ def evolve(curr_model, num_self_play = NUM_SELF_PLAY):
         board_x, pi_y, v_y = preprocess_training_data(training_data)
         print('Number of training examples: {}'.format(len(board_x)))
         curr_model.model.fit(board_x, [pi_y, v_y], batch_size=BATCH_SIZE, epochs=EPOCHS)
-        if count % 10 == 0:
-            curr_model.save(count / 10)
+        curr_model.save(count)
         count += 1
 
 

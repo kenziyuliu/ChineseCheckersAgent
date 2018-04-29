@@ -21,5 +21,5 @@ EPSILON = 1e-4
 
 ''' Train '''
 NUM_THREADS = 10
-NUM_SELF_PLAY = 200
+NUM_SELF_PLAY = 100
 SAVE_MODELS_DIR = 'saved-models/'

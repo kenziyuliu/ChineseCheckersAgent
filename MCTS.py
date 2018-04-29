@@ -122,11 +122,11 @@ class MCTS:
             self.root = sampled_edge.outNode
 
             progress_evaluated = self.root.state.player_progress(player_turn + 1)
-            if progress_evaluated == player_progresses[player_turn]:
-                num_useless_moves += 1
-            else:
+            if progress_evaluated > player_progresses[player_turn]:
                 num_useless_moves = 0
                 player_progresses[player_turn] = progress_evaluated
+            else:
+                num_useless_moves += 1
 
             # Change player
             player_turn = 1 - player_turn
