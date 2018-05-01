@@ -60,7 +60,10 @@ class Game:
             winner = self.board.place(self.cur_player.player_num, move_from, move_to)  # Make the move on board and check winner
             if winner:
                 break
+
             self.swap_players()
+
+
 
         if self.verbose:
             self.board.visualise()

@@ -133,8 +133,25 @@ class MCTS:
 
             if num_useless_moves >= PROGRESS_MOVE_LIMIT or self.root.state.check_win():
                 break
+        return actual_play_history, self.get_reward(self.root.state)
 
-        return actual_play_history, self.root.state.check_win()
+    def get_reward(self, board):
+        """
+        return the reward for player one
+        """
+        winner = board.check_win()
+        if winner == PLAYER_ONE:
+            return REWARD["win"]
+        elif winner == PLAYER_TWO:
+            return REWARD["lose"]
+        player_one_progress = board.player_progress(PLAYER_ONE)
+        player_two_progress = board.player_progress(PLAYER_TWO)
+        if player_one_progress == player_two_progress:
+            return 0
+        elif player_one_progress > player_two_progress:
+            return player_one_progress / NUM_CHECKERS
+        else:
+            return -player_two_progress / NUM_CHECKERS
 
 
     def search(self):
@@ -173,8 +190,3 @@ if __name__ == '__main__':
     tree = MCTS(node, model)
     for state, pi in tree.selfPlay()[0]:
         state.visualise()
-
-
-
-
-

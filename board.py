@@ -236,7 +236,8 @@ if __name__ == '__main__':
     # print(board.board[6, 0, 0])
     # print(board.board)
     # board.print_board()
-    print(board.get_valid_moves(1))
+    # print(board.get_valid_moves(1))
     # print(board.check_win())
     # print(board.check_win())
     # for i in range(50000):
+    # board.place()
