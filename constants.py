@@ -16,8 +16,8 @@ PROGRESS_MOVE_LIMIT = 50
 TREE_TAU = 1
 REWARD = {"lose" : -1, "draw" : 0, "win" : 1}
 C_PUCT = 1
-MCTS_SIMULATIONS = 20
-EPSILON = 1e-4
+MCTS_SIMULATIONS = 100
+EPSILON = 1e-5
 
 ''' Train '''
 NUM_THREADS = 10

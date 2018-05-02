@@ -19,4 +19,4 @@ LEARNING_RATE = 0.001
 # Default kernal regularizer
 REGULARIZER = regularizers.l2(REG_CONST)
 # Training Epochs
-EPOCHS = 100
+EPOCHS = 30

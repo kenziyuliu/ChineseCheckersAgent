@@ -130,10 +130,12 @@ class MCTS:
 
             # Change player
             player_turn = 1 - player_turn
-
+            
             if num_useless_moves >= PROGRESS_MOVE_LIMIT or self.root.state.check_win():
                 break
+
         return actual_play_history, self.get_reward(self.root.state)
+
 
     def get_reward(self, board):
         """

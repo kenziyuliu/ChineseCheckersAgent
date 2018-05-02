@@ -20,7 +20,8 @@ class Model:
     def save(self, version):
         if not os.path.exists(SAVE_MODELS_DIR):
             os.makedirs(SAVE_MODELS_DIR)
-        self.model.save('{0}version{1:0>4}'.format(SAVE_MODELS_DIR, version) + '.h5')
+        self.model.save('{0}version{1:0>4}.h5'.format(SAVE_MODELS_DIR, version))
+        print('Saved model "version{:0>4}.h5" to "{}"'.format(version, SAVE_MODELS_DIR))
 
     def load(self, filepath):
         self.model = load_model(
