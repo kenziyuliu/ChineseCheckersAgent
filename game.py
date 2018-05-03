@@ -4,7 +4,7 @@ from board import Board
 from constants import *
 
 class Game:
-    def __init__(self, p1_type=None, p2_type=None, verbose=True):
+    def __init__(self, p1_type=None, p2_type=None, verbose=True, model1=None, model2=None):
 
         if not p1_type or not p2_type:
             p1_type, p2_type = self.get_player_types()
@@ -17,14 +17,14 @@ class Game:
         elif p1_type == 'g':
             self.player_one = GreedyPlayer(player_num=1)
         else:
-            self.player_one = AiPlayer(player_num=1)
+            self.player_one = AiPlayer(player_num=1, model=model1)
 
         if p2_type == 'h':
             self.player_two = HumanPlayer(player_num=2)
         elif p2_type == 'g':
             self.player_two = GreedyPlayer(player_num=2)
         else:
-            self.player_two = AiPlayer(player_num=2)
+            self.player_two = AiPlayer(player_num=2, model=model2)
 
         self.cur_player = self.player_one
         self.next_player = self.player_two

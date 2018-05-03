@@ -6,6 +6,7 @@ import os
 import random
 from MCTS import *
 from board import *
+from model import *
 
 """
 Both players must support decide_move(self, board, verbose) method
@@ -98,19 +99,23 @@ class GreedyPlayer:
 
 # TODO: Not Implemented
 class AiPlayer:
-    def __init__(self, player_num):
+    def __init__(self, player_num, model):
         self.player_num = player_num
-        # TODO: include more members if needed
+        self.model = model
 
-    def decide_move(self, board):
+    def decide_move(self, board, verbose=False):
         """
         Given current board, return a move to play.
         :type board: Class Board
         :rtype A list of 2 tuples, specifying the move's FROM and TO.
         """
+        board.visualise()
         node = Node(board, self.player_num)
-        tree = MCTS(node, ResidualCNN())
+        tree = MCTS(node, self.model)
         pi, sampled_edge = tree.search()
+        if verbose:
+            print('AiPlayer moved from {} to {}'.format(sampled_edge.fromPos, sampled_edge.fromPos))
+
         return sampled_edge.fromPos, sampled_edge.toPos
 
 
@@ -118,10 +123,3 @@ if __name__ == "__main__":
     ai = AiPlayer(1)
     board = Board()
     print(ai.decide_move(board))
-
-
-
-
-
-
-
