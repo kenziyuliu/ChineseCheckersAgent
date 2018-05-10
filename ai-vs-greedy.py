@@ -5,6 +5,7 @@ from model import *
 """
 Run this file with argument specifying the model from terminal if you
 want to play ai-vs-greedy game
+e.g. python3 ai-vs-greedy.py saved-models/version0033.h5
 Player one is ai, player two is greedy
 """
 
@@ -13,7 +14,9 @@ if __name__ == '__main__':
     if len(sys.argv) == 2:
         model = ResidualCNN()
         filename = sys.argv[1]
+        print("\nLoading model from path {}".format(filename))
         model.load(filename)
+        print("Model is loaded sucessfully\n")
         for i in range(1):
             print(i, end=' ')
             game = Game(p1_type='ai', p2_type='greedy', verbose=True, model1 = model)

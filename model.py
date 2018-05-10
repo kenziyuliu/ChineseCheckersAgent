@@ -10,9 +10,10 @@ import model_configs
 import os
 
 class Model:
-    def __init__(self, input_dim, filters):
+    def __init__(self, input_dim, filters, version=0):
         self.input_dim = input_dim
         self.filters = filters
+        self.version = version
 
     def predict(self, input_board):
         return self.model.predict(np.expand_dims(input_board, axis=0))
@@ -20,6 +21,7 @@ class Model:
     def save(self, version):
         if not os.path.exists(SAVE_MODELS_DIR):
             os.makedirs(SAVE_MODELS_DIR)
+        self.version = version
         self.model.save('{0}version{1:0>4}.h5'.format(SAVE_MODELS_DIR, version))
         print('Saved model "version{:0>4}.h5" to "{}"'.format(version, SAVE_MODELS_DIR))
 

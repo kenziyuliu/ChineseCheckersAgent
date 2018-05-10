@@ -90,7 +90,9 @@ class GreedyPlayer:
         pick_start, pick_end = random.choice(filtered_best_moves)
 
         if verbose:
-            print('GreedyPlayer moved from {} to {}'.format(pick_start, pick_end))
+            board.visualise(cur_player = self.player_num)
+            print('GreedyPlayer moved from {} to {}\n'.format(pick_start, pick_end))
+
 
         return board_utils.human_coord_to_np_index(pick_start), \
                board_utils.human_coord_to_np_index(pick_end)
@@ -109,12 +111,17 @@ class AiPlayer:
         :type board: Class Board
         :rtype A list of 2 tuples, specifying the move's FROM and TO.
         """
-        board.visualise()
+        if verbose:
+            board.visualise(cur_player = self.player_num)
+            print('Facing the board above, Ai Version {} is thinking.'.format(self.model.version))
         node = Node(board, self.player_num)
         tree = MCTS(node, self.model)
         pi, sampled_edge = tree.search()
         if verbose:
-            print('AiPlayer moved from {} to {}'.format(sampled_edge.fromPos, sampled_edge.fromPos))
+            print('Ai Version {} moved from {} to {}\n'.format(
+                self.model.version, sampled_edge.fromPos, sampled_edge.fromPos)
+            )
+
 
         return sampled_edge.fromPos, sampled_edge.toPos
 
