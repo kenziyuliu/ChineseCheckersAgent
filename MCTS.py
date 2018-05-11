@@ -130,7 +130,7 @@ class MCTS:
 
             # Change player
             player_turn = 1 - player_turn
-            
+
             if num_useless_moves >= PROGRESS_MOVE_LIMIT or self.root.state.check_win():
                 break
 
@@ -146,14 +146,12 @@ class MCTS:
             return REWARD["win"]
         elif winner == PLAYER_TWO:
             return REWARD["lose"]
-        player_one_progress = board.player_progress(PLAYER_ONE)
-        player_two_progress = board.player_progress(PLAYER_TWO)
-        if player_one_progress == player_two_progress:
-            return 0
-        elif player_one_progress > player_two_progress:
-            return player_one_progress / NUM_CHECKERS
+        player_one_distance = board.player_forward_distance(PLAYER_ONE)
+        player_two_distance = board.player_forward_distance(PLAYER_TWO)
+        if player_one_distance == player_two_distance:
+            return REWARD["draw"]
         else:
-            return -player_two_progress / NUM_CHECKERS
+            return player_one_distance - player_two_distance
 
 
     def search(self):
