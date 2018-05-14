@@ -1,17 +1,17 @@
+import re
+import imp
 import sys
+import datetime
+import threading
+import multiprocessing as mp
+
 from constants import *
 from model_configs import *
-import threading
 from model import *
 from MCTS import *
-import tensorflow as tf
-import keras
-from keras import backend as K
-import re
-import datetime
 
 """
-Coordinates training procedure, including:
+This file coordinates training procedure, including:
 
 1. invoke self play
 2. store result from self play & start training NN immediately based on that single example
@@ -23,53 +23,112 @@ Coordinates training procedure, including:
 # Count the number of training iterations done; used for naming models
 ITERATION_COUNT = 0
 
-class SelfPlayThread(threading.Thread):
-    def __init__(self, id, game_list, model, num_self_play):
-        threading.Thread.__init__(self)
-        self.id = id
-        self.game_list = game_list
-        self.model = model
-        self.num_self_play = num_self_play
+def generate_self_play(worker_id, model_path, num_self_play):
+    # Load the current model in the worker only for prediction and set GPU limit
+    import tensorflow as tf
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    session = tf.Session(config=config)
 
-    def run(self):
-        thread_result = []
-        for i in range(self.num_self_play):
-            board = Board()
-            node = Node(board, PLAYER_ONE)
-            tree = MCTS(node, self.model)
-            play_history, result = tree.selfPlay()
-            thread_result.append((play_history, result))
-            print('Thread {} generated {} self-play games'.format(self.id, len(thread_result)))
+    from keras.backend.tensorflow_backend import set_session
+    set_session(session=session)
 
-        self.game_list += thread_result
+    # Decide what model to use
+    model = ResidualCNN()
+    if model_path is not None:
+        print('Worker {}: loading model "{}"'.format(worker_id, model_path))
+        model.load(model_path)
+        print('Worker {}: model load successful'.format(worker_id))
+    else:
+        print('Worker {}: using un-trained model'.format(worker_id))
+
+    # Worker start generating self plays according to their workload
+    worker_result = []
+    for i in range(num_self_play):
+        board = Board()
+        node = Node(board, PLAYER_ONE)
+        tree = MCTS(node, model)
+        play_history, outcome = tree.selfPlay()
+        worker_result.append((play_history, outcome))
+        print('Worker {}: generated {} self-plays'.format(worker_id, len(worker_result)))
+
+    return worker_result
 
 
-def generate_self_play_in_parallel(model, num_self_play=NUM_SELF_PLAY, num_threads=NUM_THREADS):
+
+def generate_self_play_in_parallel(model_path, num_self_play, num_workers):
+    # Process pool for parallelism
+    process_pool = mp.Pool(processes=num_workers)
+    work_share = num_self_play // num_workers
+    worker_results = []
+
+    # Send processes to generate self plays
+    for i in range(num_workers):
+        if i == num_workers - 1:
+            work_share += (num_self_play % num_workers)
+
+        # Send workers
+        result_async = process_pool.apply_async(generate_self_play, args=(i + 1, model_path, work_share))
+        worker_results.append(result_async)
+
+    # Join processes and summarise the generated final list of games
     game_list = []
-    thread_list = []
-    for i in range(num_threads):
-        thread = SelfPlayThread(i + 1, game_list, model, num_self_play // num_threads)
-        thread_list.append(thread)
-        thread.start()
-    for thread in thread_list:
-        thread.join()
+    for result in worker_results:
+        game_list += result.get()
+
+    process_pool.close()
+    process_pool.join()
+
     return game_list
 
 
-def evolve(curr_model, num_self_play = NUM_SELF_PLAY):
+
+def train(model_path, board_x, pi_y, v_y, iter_count):
+    # Set TF gpu limit
+    import tensorflow as tf
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth = True
+    session = tf.Session(config=config)
+
+    from keras.backend.tensorflow_backend import set_session
+    set_session(session=session)
+
+    print('\n{0}\nAt {1}, Training Version {2}, Number of training examples: {3}\n{0}\n'.format(
+        '*'*80, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), iter_count, len(board_x)))
+
+    # Make sure path is not null if we are not training from scratch
+    if iter_count > 0:
+        assert model_path is not None
+
+    cur_model = ResidualCNN()
+    if model_path is not None:
+        cur_model.load(model_path)
+
+    cur_model.model.fit(board_x, [pi_y, v_y], batch_size=BATCH_SIZE, epochs=EPOCHS)
+    cur_model.save(SAVE_MODELS_DIR, iter_count)
+
+
+
+def evolve(cur_model_path):
     while True:
         global ITERATION_COUNT
-        print('\n{}\nAt {} Version {}, starting to generate self-plays\n{}\n'.format(
-            '*'*80, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), ITERATION_COUNT, '*'*80))
-        # Make the model ready for prediction before concurrent access of `predict()`
-        curr_model.model._make_predict_function()
-        training_data = generate_self_play_in_parallel(curr_model, num_self_play, NUM_THREADS)
+        print('\n{0}\nAt {1}, Starting to generate self-plays for Version {2}\n{0}\n'.format(
+            '*'*80, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), ITERATION_COUNT))
+
+        training_data = generate_self_play_in_parallel(cur_model_path, NUM_SELF_PLAY, NUM_WORKERS)
         board_x, pi_y, v_y = preprocess_training_data(training_data)
-        print('\n{}\nAt {} Version {}, Number of training examples: {}\n{}\n'.format(
-            '*'*80, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), ITERATION_COUNT, len(board_x), '*'*80))
-        curr_model.model.fit(board_x, [pi_y, v_y], validation_split=0.05, batch_size=BATCH_SIZE, epochs=EPOCHS)
-        curr_model.save(ITERATION_COUNT)
+
+        # Use a *new process* to train since we DONT want to load TF in the parent process
+        training_process = mp.Process(target=train, args=(cur_model_path, board_x, pi_y, v_y, ITERATION_COUNT))
+        training_process.start()
+        training_process.join()
+
+        # Update path variable since we made a new version
+        cur_model_path = get_path_from_version(SAVE_MODELS_DIR, ITERATION_COUNT)
+
+        # Update version number
         ITERATION_COUNT += 1
+
 
 
 def preprocess_training_data(self_play_games):
@@ -90,15 +149,20 @@ def preprocess_training_data(self_play_games):
 
 
 
+def get_path_from_version(path_pref, version):
+    return path_pref + '/version{:0>4}.h5'.format(version)
+
+
+
 if __name__ == '__main__':
-    model = ResidualCNN()
+    model_path = None
     if len(sys.argv) != 1:
-        filename = sys.argv[1]
-        model.load(filename)
+        model_path = sys.argv[1]
         try:
-            ITERATION_COUNT = int(re.search('version(.+?)\.h5', filename).group(1)) + 1
+            ITERATION_COUNT = int(re.search('version(.+?)\.h5', model_path).group(1)) + 1
         except:
             ITERATION_COUNT = 0
 
-    print('\n{}\nStart to training from version: {}\n{}\n'.format('*'*50, ITERATION_COUNT, '*'*50))
-    evolve(model)
+    print('\n{0}\nStart to training from version: {1}\n{0}\n'.format('*'*50, ITERATION_COUNT))
+    evolve(model_path)
+

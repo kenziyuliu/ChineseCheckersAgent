@@ -1,13 +1,16 @@
+import os
+
 from keras import regularizers
 from keras.optimizers import SGD, Adam
 from keras.models import load_model
 from keras.models import Model as KerasModel
 from keras.layers import Input, Conv2D, Flatten, Dense, BatchNormalization, LeakyReLU, add
+
 from board import *
 from constants import *
 from loss import softmax_cross_entropy_with_logits
 import model_configs
-import os
+
 
 class Model:
     def __init__(self, input_dim, filters, version=0):
@@ -18,12 +21,12 @@ class Model:
     def predict(self, input_board):
         return self.model.predict(np.expand_dims(input_board, axis=0))
 
-    def save(self, version):
-        if not os.path.exists(SAVE_MODELS_DIR):
-            os.makedirs(SAVE_MODELS_DIR)
+    def save(self, save_dir, version):
+        if not os.path.exists(save_dir):
+            os.makedirs(save_dir)
         self.version = version
-        self.model.save('{0}version{1:0>4}.h5'.format(SAVE_MODELS_DIR, version))
-        print('Saved model "version{:0>4}.h5" to "{}"'.format(version, SAVE_MODELS_DIR))
+        self.model.save('{0}version{1:0>4}.h5'.format(save_dir, version))
+        print('\nSaved model "version{:0>4}.h5" to "{}"\n'.format(version, save_dir))
 
     def load(self, filepath):
         self.model = load_model(

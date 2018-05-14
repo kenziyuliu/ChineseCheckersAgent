@@ -13,7 +13,7 @@ NUM_RESIDUAL_BLOCKS = 20
 # Training batch size
 BATCH_SIZE = 32
 # Weight decay constant (l1/l2 regularizer)
-REG_CONST = 1e-4
+REG_CONST = 5e-5
 # Traning learning rate
 LEARNING_RATE = 0.001
 # Default kernal regularizer

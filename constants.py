@@ -18,10 +18,10 @@ PROGRESS_MOVE_LIMIT = 50
 TREE_TAU = 1
 REWARD = {"lose" : -200, "draw" : 0, "win" : 200}
 C_PUCT = 1
-MCTS_SIMULATIONS = 100
+MCTS_SIMULATIONS = 125
 EPSILON = 1e-5
 
 ''' Train '''
-NUM_THREADS = 10
-NUM_SELF_PLAY = 100
+NUM_WORKERS = 12        # For generating self plays in parallel
+NUM_SELF_PLAY = 120
 SAVE_MODELS_DIR = 'saved-models/'

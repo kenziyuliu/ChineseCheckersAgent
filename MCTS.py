@@ -1,10 +1,12 @@
-import numpy as np
-import board
-from model import *
+import math
 import copy
 import random
+import numpy as np
+
+import board
+from model import *
 from constants import *
-import math
+
 
 class Node:
     def __init__(self, state, currPlayer):
@@ -118,9 +120,11 @@ class MCTS:
             # Decide next move
             pi, sampled_edge = self.search()
             actual_play_history.append((self.root.state, pi))
+
             # Move to next board state
             self.root = sampled_edge.outNode
 
+            # Evaluate player progress for stopping
             progress_evaluated = self.root.state.player_progress(player_turn + 1)
             if progress_evaluated > player_progresses[player_turn]:
                 num_useless_moves = 0
@@ -131,6 +135,7 @@ class MCTS:
             # Change player
             player_turn = 1 - player_turn
 
+            # Stop if the game is nonsense or someone wins
             if num_useless_moves >= PROGRESS_MOVE_LIMIT or self.root.state.check_win():
                 break
 
@@ -144,10 +149,12 @@ class MCTS:
         winner = board.check_win()
         if winner == PLAYER_ONE:
             return REWARD["win"]
-        elif winner == PLAYER_TWO:
+        if winner == PLAYER_TWO:
             return REWARD["lose"]
+
         player_one_distance = board.player_forward_distance(PLAYER_ONE)
         player_two_distance = board.player_forward_distance(PLAYER_TWO)
+
         if player_one_distance == player_two_distance:
             return REWARD["draw"]
         else:

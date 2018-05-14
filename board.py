@@ -223,13 +223,14 @@ class Board:
                     reached_checkers_num += 1;
         return reached_checkers_num
 
+
     def player_forward_distance(self, player_id):
         """
         Given player_id, return the total forward distance its checkers went through.
         """
         cur_board = self.board[:, :, 0]
         checkers_pos = self.checkers_pos[player_id]
-        distance = 0;
+        distance = 0
         if player_id == PLAYER_ONE:
             distance = PLAYER_ONE_DISTANCE_OFFSET
             for _, pos in checkers_pos.items():
@@ -240,7 +241,9 @@ class Board:
             for _, pos in checkers_pos.items():
                 row, _ = board_utils.np_index_to_human_coord(pos)
                 distance += row
+
         return distance
+
 
 if __name__ == '__main__':
     """
