@@ -1,5 +1,5 @@
 from game import Game
-from constants import *
+from config import *
 
 """
 Run this file directly from terminal if you

@@ -1,6 +1,6 @@
 import numpy as np
 import board_utils
-from constants import *
+from config import *
 import copy
 import os
 import random
@@ -119,7 +119,7 @@ class AiPlayer:
         pi, sampled_edge = tree.search()
         if verbose:
             print('Ai Version {} moved from {} to {}\n'.format(
-                self.model.version, sampled_edge.fromPos, sampled_edge.fromPos)
+                self.model.version, sampled_edge.fromPos, sampled_edge.toPos)
             )
 
 

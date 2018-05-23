@@ -7,9 +7,8 @@ from keras.models import Model as KerasModel
 from keras.layers import Input, Conv2D, Flatten, Dense, BatchNormalization, LeakyReLU, add
 
 from board import *
-from constants import *
+from config import *
 from loss import softmax_cross_entropy_with_logits
-import model_configs
 
 
 class Model:
@@ -25,8 +24,8 @@ class Model:
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
         self.version = version
-        self.model.save('{0}version{1:0>4}.h5'.format(save_dir, version))
-        print('\nSaved model "version{:0>4}.h5" to "{}"\n'.format(version, save_dir))
+        self.model.save('{}/{}{:0>4}.h5'.format(save_dir, MODEL_PREFIX, version))
+        print('\nSaved model "{}{:0>4}.h5" to "{}"\n'.format(MODEL_PREFIX, version, save_dir))
 
     def load(self, filepath):
         self.model = load_model(
@@ -94,11 +93,11 @@ class Model:
             7 x 7 x 7. First 3 channel is player 1, next 3 channel is player 2, last channel is all 0 if player 1 is to play.
         """
         # initialise the model input
-        model_input = np.zeros((BOARD_WIDTH, BOARD_HEIGHT, NUM_HIST_MOVES * 2 + 1), dtype="uint8") # may change dtype afterwards
+        model_input = np.zeros((BOARD_WIDTH, BOARD_HEIGHT, BOARD_HIST_MOVES * 2 + 1), dtype="float64") # may change dtype afterwards
         # get np array board
         new_board = board.board
         # get history moves
-        moves = board.hist_moves
+        hist_moves = board.hist_moves
         # get opponent player
         op_player = PLAYER_ONE + PLAYER_TWO - cur_player
 
@@ -119,13 +118,14 @@ class Model:
 
         # construct the latter layers
         moved_player = op_player
-        hist_index = len(moves) - 1
-        for channel in range(1, NUM_HIST_MOVES):
+        hist_index = len(hist_moves) - 1
+        for channel in range(1, BOARD_HIST_MOVES):
             if not np.any(new_board[:, :, channel]): # timestep < 0
                 break
-            move = moves[hist_index]
+            move = hist_moves[hist_index]
             orig_pos = move[0]
             dest_pos = move[1]
+
             if moved_player == cur_player:
                 value = cur_layer[dest_pos]
                 cur_layer[dest_pos] = cur_layer[orig_pos]
@@ -134,13 +134,14 @@ class Model:
                 value = op_layer[dest_pos]
                 op_layer[dest_pos] = op_layer[orig_pos]
                 op_layer[orig_pos] = value
+
             hist_index -= 1
             moved_player = PLAYER_ONE + PLAYER_TWO - moved_player
             model_input[:, :, channel * 2] = np.copy(cur_layer)
             model_input[:, :, channel * 2 + 1] = np.copy(op_layer)
 
-        if cur_player == 2: # player 2 to play
-            model_input[:, :, NUM_HIST_MOVES * 2] = np.ones((BOARD_WIDTH, BOARD_HEIGHT), dtype="uint8")
+        if cur_player == PLAYER_TWO: # player 2 to play
+            model_input[:, :, BOARD_HIST_MOVES * 2] = np.ones((BOARD_WIDTH, BOARD_HEIGHT))
 
         return model_input
 
@@ -169,25 +170,25 @@ class Model:
 
 
 class ResidualCNN(Model):
-    def __init__(self, input_dim=model_configs.INPUT_DIM, filters=model_configs.NUM_FILTERS):
+    def __init__(self, input_dim=INPUT_DIM, filters=NUM_FILTERS):
         Model.__init__(self, input_dim, filters)
         self.model = self.build_model()
 
 
     def build_model(self):
         main_input = Input(shape=self.input_dim)
-        x = self.conv_block(main_input, self.filters, 3, model_configs.REGULARIZER)
+        x = self.conv_block(main_input, self.filters, 3, REGULARIZER)
 
-        for _ in range(model_configs.NUM_RESIDUAL_BLOCKS):
-            x = self.residual_block(x, self.filters, 3, model_configs.REGULARIZER)
+        for _ in range(NUM_RESIDUAL_BLOCKS):
+            x = self.residual_block(x, self.filters, 3, REGULARIZER)
 
-        value = self.value_head(x, model_configs.REGULARIZER)
-        policy = self.policy_head(x, model_configs.REGULARIZER)
+        value = self.value_head(x, REGULARIZER)
+        policy = self.policy_head(x, REGULARIZER)
 
         model = KerasModel(inputs=[main_input], outputs=[policy, value])
         model.compile(loss={"value_head":"mean_squared_error", "policy_head":softmax_cross_entropy_with_logits},
-                        optimizer=Adam(lr=model_configs.LEARNING_RATE),
-                        loss_weights={"value_head": 0.5, "policy_head": 0.5})
+                        optimizer=Adam(lr=LEARNING_RATE),
+                        loss_weights={"value_head": 1., "policy_head": 1.})
         return model
 
 

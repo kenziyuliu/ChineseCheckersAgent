@@ -1,7 +1,7 @@
 import numpy as np
 from player import HumanPlayer, GreedyPlayer, AiPlayer
 from board import Board
-from constants import *
+from config import *
 
 class Game:
     def __init__(self, p1_type=None, p2_type=None, verbose=True, model1=None, model2=None):
@@ -62,8 +62,6 @@ class Game:
                 break
 
             self.swap_players()
-
-
 
         if self.verbose:
             self.board.visualise()

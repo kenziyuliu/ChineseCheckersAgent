@@ -1,4 +1,4 @@
-from constants import *
+from config import *
 
 def np_index_to_human_coord(coord):
     np_i, np_j = coord

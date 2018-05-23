@@ -1,5 +1,5 @@
 from game import Game
-from constants import *
+from config import *
 import sys
 from model import *
 """
