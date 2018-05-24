@@ -52,3 +52,12 @@ LEARNING_RATE = 0.001                       # Traning learning rate
 REGULARIZER = regularizers.l2(REG_CONST)    # Default kernal regularizer
 EPOCHS = 20                                 # Training Epochs
 
+''' Greedy Data Generator '''
+THRESHOLD_FOR_RANDOMIZATION = 2
+AVERAGE_TOTAL_MOVE = 43
+STUCK_TIME_LIMIT = 5
+
+
+
+
+

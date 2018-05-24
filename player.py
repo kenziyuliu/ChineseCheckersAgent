@@ -65,7 +65,7 @@ class GreedyPlayer:
     def __init__(self, player_num):
         self.player_num = player_num
 
-    def decide_move(self, board, verbose=False):
+    def decide_move(self, board, verbose=False, training=False):
         valid_moves = board.get_valid_moves(self.player_num)
         human_valid_moves = board_utils.convert_np_to_human_moves(valid_moves)
 
@@ -86,6 +86,10 @@ class GreedyPlayer:
         last_checker, _ = max(best_moves, key=lambda x: (x[0][0] if self.player_num == PLAYER_ONE else -x[0][0]))
         # Take away staying-move, and get all moves that is for the last checker
         filtered_best_moves = [move for move in best_moves if move[0][0] == last_checker[0]]
+
+        if training:
+            return filtered_best_moves
+            
         # Then randomly sample a move
         pick_start, pick_end = random.choice(filtered_best_moves)
 
