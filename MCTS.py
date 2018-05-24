@@ -155,7 +155,8 @@ class MCTS:
             # Evaluate player progress for stopping
             progress_evaluated = self.root.state.player_progress(player_turn + 1)
             if progress_evaluated > player_progresses[player_turn]:
-                num_useless_moves = 0
+                utils.stress_message('Reduced number of useless moves as some progress was made')
+                num_useless_moves = int(PROGRESS_MOVE_LIMIT * (NUM_CHECKERS - 1) / NUM_CHECKERS)
                 player_progresses[player_turn] = progress_evaluated
             else:
                 num_useless_moves += 1

@@ -25,6 +25,10 @@ This file coordinates training procedure, including:
 ITERATION_COUNT = 0
 
 def generate_self_play(worker_id, model_path, num_self_play):
+    # Re-seed the generators: since the RNG was copied from parent process
+    np.random.seed()        # None seed to source from /dev/urandom
+    random.seed()
+
     # Load the current model in the worker only for prediction and set GPU limit
     import tensorflow as tf
     tf_config = tf.ConfigProto()
@@ -49,7 +53,7 @@ def generate_self_play(worker_id, model_path, num_self_play):
         board = Board()
         node = Node(board, PLAYER_ONE)
         tree = MCTS(node, model)
-        play_history, outcome = tree.selfPlay()
+        play_history, outcome = tree.selfPlay()         # TODO: code refactor
         worker_result.append((play_history, outcome))
         print('Worker {}: generated {} self-plays'.format(worker_id, len(worker_result)))
 
@@ -139,7 +143,7 @@ def evolve(cur_model_path):
         # Convert self-play games to training data
         board_x, pi_y, v_y = convert_to_train_data(games)
         board_x, pi_y, v_y = augment_train_data(board_x, pi_y, v_y)
-        
+
         # Numpyify and save for later iterations
         board_x, pi_y, v_y = np.array(board_x), np.array(pi_y), np.array(v_y)
         save_train_data(board_x, pi_y, v_y, version=ITERATION_COUNT)
@@ -172,7 +176,14 @@ def combine_prev_iters_train_data(board_x, pi_y, v_y):
     for i in range(ITERATION_COUNT - PAST_ITER_COUNT, ITERATION_COUNT):
         if i < 0:
             continue
-        with h5py.File('{}/{}{}.h5'.format(SAVE_TRAIN_DATA_DIR, SAVE_TRAIN_DATA_PREF, i), 'r') as H:
+
+        filename = '{}/{}{}.h5'.format(SAVE_TRAIN_DATA_DIR, SAVE_TRAIN_DATA_PREF, i)
+
+        if not os.path.exists(filename):
+            utils.stress_message('{} does not exist!'.format(filename))
+            continue
+
+        with h5py.File(filename, 'r') as H:
             all_board_x.append(np.copy(H['board_x']))
             all_pi_y.append(np.copy(H['pi_y']))
             all_v_y.append(np.copy(H['v_y']))
@@ -199,7 +210,7 @@ def save_train_data(board_x, pi_y, v_y, version):
 
 
 def convert_to_train_data(self_play_games):
-    ''' return python lists containing training data '''
+    ''' Return python lists containing training data '''
     board_x, pi_y, v_y = [], [], []
     for game in self_play_games:
         history, reward = game

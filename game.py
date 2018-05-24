@@ -54,10 +54,12 @@ class Game:
 
 
     def start(self):
-        # needed for later calling Model.to_model_input()
+        total_moves = 0
         while True:
             move_from, move_to = self.cur_player.decide_move(self.board, verbose=self.verbose)    # Get move from player
             winner = self.board.place(self.cur_player.player_num, move_from, move_to)  # Make the move on board and check winner
+            total_moves += 1
+            print('Total Moves: {}'.format(total_moves))
             if winner:
                 break
 

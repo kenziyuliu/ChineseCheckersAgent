@@ -18,13 +18,13 @@ TOTAL_HIST_MOVES = 16                       # Total number of history moves to k
 UNIQUE_DEST_LIMIT = 3
 
 ''' MCTS and RL '''
-PROGRESS_MOVE_LIMIT = 100
+PROGRESS_MOVE_LIMIT = 72
 TREE_TAU = 1
 REWARD = {"lose" : -10, "draw" : 0, "win" : 10}
 C_PUCT = 1
-MCTS_SIMULATIONS = 120
+MCTS_SIMULATIONS = 128
 EPSILON = 1e-5
-DIST_THRES_FOR_REWARD = 3                   # Threshold for reward for player forward distance difference
+DIST_THRES_FOR_REWARD = 2                   # Threshold for reward for player forward distance difference
 TOTAL_MOVES_TILL_TAU0 = 24
 
 ''' Dirichlet Noise '''
