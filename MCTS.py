@@ -116,93 +116,6 @@ class MCTS:
             edge.stats['Q'] = edge.stats['W'] / float(edge.stats['N']) # Use float() for python2 compatibility
 
 
-    def selfPlay(self):
-        player_progresses = [0, 0]
-        player_turn = 0
-        num_useless_moves = 0
-        actual_play_history = []
-
-        while True:
-            # Before deciding next move, expand from the current state (which must be leaf/root)
-            # and add Dirichlet noise to prior probs at the root to ensure all moves may be tried
-            assert self.root.isLeaf()
-            self.expandAndBackUp(self.root, breadcrumbs=[])     # Because root doesn't have path back to root
-            dirichlet_noise = np.random.dirichlet(np.ones(len(self.root.edges)) * DIRICHLET_ALPHA)
-            for i in range(len(self.root.edges)):
-                self.root.edges[i].stats['P'] *= (1. - DIR_NOISE_FACTOR)
-                self.root.edges[i].stats['P'] += DIR_NOISE_FACTOR * dirichlet_noise[i]
-
-            # Decide next move from the root with 1 level of prior probability
-            pi, sampled_edge = self.search()
-            actual_play_history.append((self.root.state, pi))
-
-            # Move to next board state
-            self.root = sampled_edge.outNode
-            # Clear the tree from this node before each actual move
-            self.root.edges.clear()
-
-            # Collect garbage
-            gc.collect()
-
-            # Determine repetitions for stopping: can't use slicing since `hist_moves` is a deque
-            cur_player_hist_moves = [move for i, move in enumerate(self.root.state.hist_moves) if i % 2 == 0]
-            history_dests = set([move[1] for move in cur_player_hist_moves])
-
-            # If limited destinations exist in the past moves, then there is some kind of repetition
-            if (len(cur_player_hist_moves) * 2) >= TOTAL_HIST_MOVES and len(history_dests) <= UNIQUE_DEST_LIMIT:
-                break
-
-            # Evaluate player progress for stopping
-            progress_evaluated = self.root.state.player_progress(player_turn + 1)
-            if progress_evaluated > player_progresses[player_turn]:
-                utils.stress_message('Reduced number of useless moves as some progress was made')
-                num_useless_moves = int(PROGRESS_MOVE_LIMIT * (NUM_CHECKERS - 1) / NUM_CHECKERS)
-                player_progresses[player_turn] = progress_evaluated
-            else:
-                num_useless_moves += 1
-
-            # Change player
-            player_turn = 1 - player_turn
-
-            # Change TREE_TAU to very small if game has certain progress so actions are deterministic
-            if len(actual_play_history) > TOTAL_MOVES_TILL_TAU0:
-                self.tree_tau = 0.01
-
-            # Stop if the game is nonsense or someone wins
-            if num_useless_moves >= PROGRESS_MOVE_LIMIT:
-                utils.stress_message('Game stopped by reaching progress move limit')
-                break
-
-            if self.root.state.check_win():
-                utils.stress_message('END GAME REACHED')
-                break
-
-        # Collect garbage
-        gc.collect()
-        # Restore tree tau
-        self.tree_tau = TREE_TAU
-        return actual_play_history, self.get_reward(self.root.state)
-
-
-    def get_reward(self, board):
-        """
-        return the reward for player one
-        """
-        winner = board.check_win()
-        if winner == PLAYER_ONE:
-            return REWARD["win"]
-        if winner == PLAYER_TWO:
-            return REWARD["lose"]
-
-        player_one_distance = board.player_forward_distance(PLAYER_ONE)
-        player_two_distance = board.player_forward_distance(PLAYER_TWO)
-
-        if abs(player_one_distance - player_two_distance) <= DIST_THRES_FOR_REWARD:
-            return REWARD["draw"]
-
-        return 1 if (player_one_distance - player_two_distance >= DIST_THRES_FOR_REWARD) else -1
-
-
     def search(self):
         # Build Monte Carlo tree from root using lots of simulations
         for i in range(self.num_itr):
@@ -245,5 +158,5 @@ if __name__ == '__main__':
     node = Node(board, 1)
     model = ResidualCNN()
     tree = MCTS(node, model)
-    for state, pi in tree.selfPlay()[0]:
+    for state, pi in tree.selfplay()[0]:
         state.visualise()

@@ -186,9 +186,9 @@ class ResidualCNN(Model):
         policy = self.policy_head(x, REGULARIZER)
 
         model = KerasModel(inputs=[main_input], outputs=[policy, value])
-        model.compile(loss={"value_head":"mean_squared_error", "policy_head":softmax_cross_entropy_with_logits},
+        model.compile(loss={"policy_head":softmax_cross_entropy_with_logits, "value_head":"mean_squared_error"},
                         optimizer=Adam(lr=LEARNING_RATE),
-                        loss_weights={"value_head": 1., "policy_head": 1.})
+                        loss_weights={"policy_head": 1., "value_head": 1.})
         return model
 
 

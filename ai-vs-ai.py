@@ -3,6 +3,7 @@ from game import Game
 from config import *
 import sys
 from model import *
+from utils import find_version_given_filename
 """
 Run this file with argument specifying the models from terminal if you
 want to play ai-vs-ai game
@@ -14,7 +15,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 3:
         model1 = ResidualCNN()
         filename1 = sys.argv[1]
-        version_num1 = int(re.search('{}(.+?)\.h5'.format(MODEL_PREFIX), filename1).group(1))
+        version_num1 = find_version_given_filename(filename1)
         model1.version = version_num1
         print("\nLoading model1 from path {}".format(filename1))
         model1.load(filename1)
@@ -22,7 +23,7 @@ if __name__ == '__main__':
 
         model2 = ResidualCNN()
         filename2 = sys.argv[2]
-        version_num2 = int(re.search('{}(.+?)\.h5'.format(MODEL_PREFIX), filename2).group(1))
+        version_num2 = find_version_given_filename(filename2)
         model2.version = version_num2
         print("Loading model2 from path {}".format(filename2))
         model2.load(filename2)

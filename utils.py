@@ -1,6 +1,8 @@
 import datetime
+import re
 from collections import Mapping, Container
 from sys import getsizeof
+from config import MODEL_PREFIX
 
 
 def cur_time():
@@ -28,3 +30,5 @@ def deepsizeof(obj, visited):
     return r
 
 
+def find_version_given_filename(filename):
+    return int(re.search('{}(.+?)\.h5'.format(MODEL_PREFIX), filename).group(1))

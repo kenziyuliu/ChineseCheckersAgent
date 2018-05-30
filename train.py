@@ -10,6 +10,7 @@ import utils
 from config import *
 from model import *
 from MCTS import *
+from selfplay import selfplay
 
 """
 This file coordinates training procedure, including:
@@ -24,7 +25,7 @@ This file coordinates training procedure, including:
 # Count the number of training iterations done; used for naming models
 ITERATION_COUNT = 0
 
-def generate_self_play(worker_id, model_path, num_self_play):
+def generate_self_play(worker_id, model_path, num_self_play, model2_path=None):
     # Re-seed the generators: since the RNG was copied from parent process
     np.random.seed()        # None seed to source from /dev/urandom
     random.seed()
@@ -40,20 +41,25 @@ def generate_self_play(worker_id, model_path, num_self_play):
 
     # Decide what model to use
     model = ResidualCNN()
+    model2 = None
     if model_path is not None:
         print('Worker {}: loading model "{}"'.format(worker_id, model_path))
         model.load(model_path)
         print('Worker {}: model load successful'.format(worker_id))
+
+        if model2_path is not None:
+            print('Worker {}: loading 2nd model "{}"'.format(worker_id, model2_path))
+            model2 = ResidualCNN()
+            model2.load(model2_path)
+            print('Worker {}: 2nd model load successful'.format(worker_id))
+
     else:
         print('Worker {}: using un-trained model'.format(worker_id))
 
     # Worker start generating self plays according to their workload
     worker_result = []
     for i in range(num_self_play):
-        board = Board()
-        node = Node(board, PLAYER_ONE)
-        tree = MCTS(node, model)
-        play_history, outcome = tree.selfPlay()         # TODO: code refactor
+        play_history, outcome = selfplay(model, model2)
         worker_result.append((play_history, outcome))
         print('Worker {}: generated {} self-plays'.format(worker_id, len(worker_result)))
 
@@ -61,7 +67,7 @@ def generate_self_play(worker_id, model_path, num_self_play):
 
 
 
-def generate_self_play_in_parallel(model_path, num_self_play, num_workers):
+def generate_self_play_in_parallel(model_path, num_self_play, num_workers, model2_path=None):
     # Process pool for parallelism
     process_pool = mp.Pool(processes=num_workers)
     work_share = num_self_play // num_workers
@@ -73,7 +79,7 @@ def generate_self_play_in_parallel(model_path, num_self_play, num_workers):
             work_share += (num_self_play % num_workers)
 
         # Send workers
-        result_async = process_pool.apply_async(generate_self_play, args=(i + 1, model_path, work_share))
+        result_async = process_pool.apply_async(generate_self_play, args=(i + 1, model_path, work_share, model2_path))
         worker_results.append(result_async)
 
     # Join processes and summarise the generated final list of games
@@ -113,17 +119,17 @@ def train(model_path, board_x, pi_y, v_y, data_retention, version):
         cur_model.load(model_path)
 
     # Train!
-    for _ in range(EPOCHS):
-        # Sample a *different* portion of training data in each epoch
-        sampled_idx = np.random.choice(len(board_x), int(data_retention * len(board_x)), replace=False)
-        sampled_board_x = board_x[sampled_idx]
-        sampled_pi_y = pi_y[sampled_idx]
-        sampled_v_y = v_y[sampled_idx]
+    # Sample a portion of training data before training
+    sampled_idx = np.random.choice(len(board_x), int(data_retention * len(board_x)), replace=False)
+    sampled_board_x = board_x[sampled_idx]
+    sampled_pi_y = pi_y[sampled_idx]
+    sampled_v_y = v_y[sampled_idx]
 
-        cur_model.model.fit(sampled_board_x, [sampled_pi_y, sampled_v_y],
-            batch_size=BATCH_SIZE,
-            epochs=1,
-            shuffle=True)
+    # for _ in range(EPOCHS):
+    cur_model.model.fit(sampled_board_x, [sampled_pi_y, sampled_v_y],
+        batch_size=BATCH_SIZE,
+        epochs=EPOCHS,
+        shuffle=True)
 
     cur_model.save(SAVE_MODELS_DIR, version)
 
@@ -138,7 +144,13 @@ def evolve(cur_model_path):
         message = 'At {}, Starting to generate self-plays for Version {}'.format(utils.cur_time(), ITERATION_COUNT)
         utils.stress_message(message, True)
 
-        games = generate_self_play_in_parallel(cur_model_path, NUM_SELF_PLAY, NUM_WORKERS)
+        model2_path = None
+        if SELF_PLAY_DIFF_MODEL and ITERATION_COUNT > 1:
+            model2_version = get_rand_prev_version(ITERATION_COUNT)
+            model2_path = get_model_path_from_version(model2_version)
+            utils.stress_message('.. and vs. Version {}'.format(model2_version))
+
+        games = generate_self_play_in_parallel(cur_model_path, NUM_SELF_PLAY, NUM_WORKERS, model2_path)
 
         # Convert self-play games to training data
         board_x, pi_y, v_y = convert_to_train_data(games)
@@ -254,6 +266,10 @@ def get_model_path_from_version(version):
     return '{}/{}{:0>4}.h5'.format(SAVE_MODELS_DIR, MODEL_PREFIX, version)
 
 
+def get_rand_prev_version(upper):
+    return np.random.randint(upper//2, upper)
+
+
 
 if __name__ == '__main__':
     model_path = None
@@ -267,4 +283,3 @@ if __name__ == '__main__':
 
     utils.stress_message('Start to training from version: {}'.format(ITERATION_COUNT), True)
     evolve(model_path)
-

@@ -17,7 +17,7 @@ class HumanPlayer:
         self.player_num = player_num
         # TODO: include more members if needed
 
-    def decide_move(self, board, verbose=True):
+    def decide_move(self, board, verbose=True, total_moves=None):
         """
         Given current board, return a move to play.
         :type board: Class Board
@@ -65,7 +65,7 @@ class GreedyPlayer:
     def __init__(self, player_num):
         self.player_num = player_num
 
-    def decide_move(self, board, verbose=False, training=False):
+    def decide_move(self, board, verbose=False, training=False, total_moves=None):
         valid_moves = board.get_valid_moves(self.player_num)
         human_valid_moves = board_utils.convert_np_to_human_moves(valid_moves)
 
@@ -89,7 +89,7 @@ class GreedyPlayer:
 
         if training:
             return filtered_best_moves
-            
+
         # Then randomly sample a move
         pick_start, pick_end = random.choice(filtered_best_moves)
 
@@ -97,19 +97,17 @@ class GreedyPlayer:
             board.visualise(cur_player = self.player_num)
             print('GreedyPlayer moved from {} to {}\n'.format(pick_start, pick_end))
 
-
         return board_utils.human_coord_to_np_index(pick_start), \
                board_utils.human_coord_to_np_index(pick_end)
 
 
 
-# TODO: Not Implemented
 class AiPlayer:
     def __init__(self, player_num, model):
         self.player_num = player_num
         self.model = model
 
-    def decide_move(self, board, verbose=False):
+    def decide_move(self, board, verbose=False, total_moves=None):
         """
         Given current board, return a move to play.
         :type board: Class Board
@@ -119,13 +117,17 @@ class AiPlayer:
             board.visualise(cur_player = self.player_num)
             print('Facing the board above, Ai Version {} is thinking.'.format(self.model.version))
         node = Node(board, self.player_num)
-        tree = MCTS(node, self.model)
+
+        tree_tau = TREE_TAU
+        if total_moves is not None and total_moves > TOTAL_MOVES_TILL_TAU0:
+            tree_tau = 0.01
+
+        tree = MCTS(node, self.model, tree_tau=tree_tau)
         pi, sampled_edge = tree.search()
         if verbose:
             print('Ai Version {} moved from {} to {}\n'.format(
                 self.model.version, sampled_edge.fromPos, sampled_edge.toPos)
             )
-
 
         return sampled_edge.fromPos, sampled_edge.toPos
 
