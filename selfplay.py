@@ -1,13 +1,17 @@
 import numpy as np
 
 import utils
-from MCTS import MCTS, Node
 from config import *
 from board import Board
+from MCTS import MCTS, Node
 
-def selfplay(model1, model2):
+
+def selfplay(model1, model2, randomised=False):
+    '''
+    Generate an agent self-play given two models
+    TODO: if `randomised`, randomise starting board state
+    '''
     if model2 is None:
-        print ('model2 is None')
         model2 = model1
 
     player_progresses = [0, 0]
@@ -16,25 +20,30 @@ def selfplay(model1, model2):
     play_history = []
     tree_tau = TREE_TAU
 
-    board = Board() # 1 selfplay, 1 game
-    root = Node(board, PLAYER_ONE) # initial root
+    board = Board(randomised=randomised)
+    root = Node(board, PLAYER_ONE)          # initial game state
     use_model1 = True
+
     while True:
         model = model1 if use_model1 else model2
+
+        # Use Current model to make a move
         root = make_move(root, model, tree_tau, play_history)
         assert root.isLeaf()
-        cur_player_hist_moves = [move for i, move in enumerate(root.state.hist_moves) if i % 2 == 0]
+
+        hist_moves = root.state.hist_moves
+        cur_player_hist_moves = [hist_moves[i] for i in range(len(hist_moves) - 1, -1, -2)]
         history_dests = set([move[1] for move in cur_player_hist_moves])
 
         # If limited destinations exist in the past moves, then there is some kind of repetition
-        if (len(cur_player_hist_moves) * 2) >= TOTAL_HIST_MOVES and len(history_dests) <= UNIQUE_DEST_LIMIT:
-            break
+        if len(cur_player_hist_moves) * 2 >= TOTAL_HIST_MOVES and len(history_dests) <= UNIQUE_DEST_LIMIT:
+            print('Repetition detected: stopping and discarding game')
+            return None, None
 
         # Evaluate player progress for stopping
         progress_evaluated = root.state.player_progress(player_turn + 1)
         if progress_evaluated > player_progresses[player_turn]:
-            utils.stress_message('Reduced number of useless moves as some progress was made')
-            num_useless_moves = int(PROGRESS_MOVE_LIMIT * (NUM_CHECKERS - 1) / NUM_CHECKERS)
+            num_useless_moves = int(num_useless_moves * (NUM_CHECKERS - 1) / NUM_CHECKERS)
             player_progresses[player_turn] = progress_evaluated
         else:
             num_useless_moves += 1
@@ -45,56 +54,70 @@ def selfplay(model1, model2):
 
         # Change TREE_TAU to very small if game has certain progress so actions are deterministic
         if len(play_history) > TOTAL_MOVES_TILL_TAU0:
+            if tree_tau == TREE_TAU:
+                print('Changing tree_tau to 0.01 as total number of moves is now {}'.format(len(play_history)))
             tree_tau = 0.01
-
-        # Stop if the game is nonsense or someone wins
-        if num_useless_moves >= PROGRESS_MOVE_LIMIT:
-            utils.stress_message('Game stopped by reaching progress move limit')
-            break
 
         if root.state.check_win():
             utils.stress_message('END GAME REACHED')
             break
 
-    return play_history, get_reward(root.state)
+        # Stop (and discard) the game if it's nonsense
+        if num_useless_moves >= PROGRESS_MOVE_LIMIT:
+            print('Game stopped by reaching progress move limit; Game Discarded')
+            return None, None
+
+    if randomised:
+        # Discard the first `BOARD_HIST_MOVES` as the history is not enough
+        return play_history[BOARD_HIST_MOVES:], utils.get_p1_winloss_reward(root.state)
+    else:
+        return play_history, utils.get_p1_winloss_reward(root.state)
 
 
-# code inside original while loop of selfplay()
+
 def make_move(root, model, tree_tau, play_history):
+    '''
+    Given a current board state, perform tree search
+    and make a move
+    (Code inside original while loop of selfplay())
+    '''
     assert root.isLeaf()
     tree = MCTS(root, model)
 
-    # add Dirichlet noise to prior probs at the root to ensure all moves may be tried
-    tree.expandAndBackUp(tree.root, breadcrumbs=[])     # board.place is called in the expandAndBackUp()
-                                                        # breadcrumbs=[] as root has empth path back to root
+    # Make the first expansion to possible next states
+    tree.expandAndBackUp(tree.root, breadcrumbs=[])     # breadcrumbs=[] as root has empth path back to root
     assert len(tree.root.edges) > 0 # as root has been expanded
+
+    # Add Dirichlet noise to prior probs at the root to ensure all moves may be tried
     dirichlet_noise = np.random.dirichlet(np.ones(len(tree.root.edges)) * DIRICHLET_ALPHA)
     for i in range(len(tree.root.edges)):
         tree.root.edges[i].stats['P'] *= (1. - DIR_NOISE_FACTOR)
         tree.root.edges[i].stats['P'] += DIR_NOISE_FACTOR * dirichlet_noise[i]
+
     # Decide next move from the root with 1 level of prior probability
     pi, sampled_edge = tree.search()
     play_history.append((tree.root.state, pi))
+    
     outNode = sampled_edge.outNode
     outNode.edges.clear()
 
     return outNode # root for next iteration
 
 
-def get_reward(board):
-    """
-    return the reward for player one
-    """
-    winner = board.check_win()
-    if winner == PLAYER_ONE:
-        return REWARD["win"]
-    if winner == PLAYER_TWO:
-        return REWARD["lose"]
-
-    player_one_distance = board.player_forward_distance(PLAYER_ONE)
-    player_two_distance = board.player_forward_distance(PLAYER_TWO)
-
-    if abs(player_one_distance - player_two_distance) <= DIST_THRES_FOR_REWARD:
-        return REWARD["draw"]
-
-    return 1 if (player_one_distance - player_two_distance >= DIST_THRES_FOR_REWARD) else -1
+# def get_reward(board):
+#     """
+#     return the reward for player one
+#     """
+#     winner = board.check_win()
+#     if winner == PLAYER_ONE:
+#         return REWARD["win"]
+#     if winner == PLAYER_TWO:
+#         return REWARD["lose"]
+#
+#     player_one_distance = board.player_forward_distance(PLAYER_ONE)
+#     player_two_distance = board.player_forward_distance(PLAYER_TWO)
+#
+#     if abs(player_one_distance - player_two_distance) <= DIST_THRES_FOR_REWARD:
+#         return REWARD["draw"]
+#
+#     return 1 if (player_one_distance - player_two_distance >= DIST_THRES_FOR_REWARD) else -1

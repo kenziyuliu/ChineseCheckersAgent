@@ -70,7 +70,7 @@ class GreedyPlayer:
         human_valid_moves = board_utils.convert_np_to_human_moves(valid_moves)
 
         best_moves = []
-        max_dist = -1
+        max_dist = float('-inf')
         for start in human_valid_moves:
             for end in human_valid_moves[start]:
                 dist = end[0] - start[0]    # Evaluate distance by how many steps forward
@@ -116,6 +116,7 @@ class AiPlayer:
         if verbose:
             board.visualise(cur_player = self.player_num)
             print('Facing the board above, Ai Version {} is thinking.'.format(self.model.version))
+
         node = Node(board, self.player_num)
 
         tree_tau = TREE_TAU
@@ -126,8 +127,7 @@ class AiPlayer:
         pi, sampled_edge = tree.search()
         if verbose:
             print('Ai Version {} moved from {} to {}\n'.format(
-                self.model.version, sampled_edge.fromPos, sampled_edge.toPos)
-            )
+                self.model.version, sampled_edge.fromPos, sampled_edge.toPos))
 
         return sampled_edge.fromPos, sampled_edge.toPos
 

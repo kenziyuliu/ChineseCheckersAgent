@@ -1,4 +1,6 @@
 import numpy as np
+from collections import deque
+
 from player import HumanPlayer, GreedyPlayer, AiPlayer
 from board import Board
 from config import *
@@ -6,7 +8,7 @@ from config import *
 class Game:
     def __init__(self, p1_type=None, p2_type=None, verbose=True, model1=None, model2=None):
 
-        if not p1_type or not p2_type:
+        if p1_type is None or p2_type is None:
             p1_type, p2_type = self.get_player_types()
 
         p1_type = p1_type[0].lower()
@@ -55,19 +57,37 @@ class Game:
 
     def start(self):
         total_moves = 0
+        history_dests = deque()
         while True:
             move_from, move_to = self.cur_player.decide_move(self.board, verbose=self.verbose, total_moves=total_moves)    # Get move from player
             winner = self.board.place(self.cur_player.player_num, move_from, move_to)  # Make the move on board and check winner
             total_moves += 1
-            print('Total Moves: {}'.format(total_moves))
+            if self.verbose:
+                print('Total Moves: {}'.format(total_moves))
+
             if winner:
+                break
+
+            if len(history_dests) == TOTAL_HIST_MOVES:
+                history_dests.popleft()
+            history_dests.append(move_to)
+
+            # Impose repetition limit
+            cur_player_hist_dest = set([history_dests[i] for i in range(len(history_dests) - 1, -1, -2)])
+            if len(history_dests) == TOTAL_HIST_MOVES and len(cur_player_hist_dest) <= UNIQUE_DEST_LIMIT:
+                print('Repetition detected: stopping game')
+                winner = None
                 break
 
             self.swap_players()
 
+
         if self.verbose:
             self.board.visualise()
-        print('Player {} wins!'.format(winner))
+
+        if winner is not None:
+            print('Player {} wins!'.format(winner))
+            
         return winner
 
 

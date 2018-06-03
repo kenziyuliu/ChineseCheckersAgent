@@ -44,13 +44,13 @@ def generate_self_play(worker_id, model_path, num_self_play, model2_path=None):
     model2 = None
     if model_path is not None:
         print('Worker {}: loading model "{}"'.format(worker_id, model_path))
-        model.load(model_path)
+        model.load_weights(model_path)
         print('Worker {}: model load successful'.format(worker_id))
 
         if model2_path is not None:
             print('Worker {}: loading 2nd model "{}"'.format(worker_id, model2_path))
             model2 = ResidualCNN()
-            model2.load(model2_path)
+            model2.load_weights(model2_path)
             print('Worker {}: 2nd model load successful'.format(worker_id))
 
     else:
@@ -111,27 +111,25 @@ def train(model_path, board_x, pi_y, v_y, data_retention, version):
 
 
     # Make sure path is not null if we are not training from scratch
+    cur_model = ResidualCNN()
     if version > 0:
         assert model_path is not None
+        cur_model.load_weights(model_path)
 
-    cur_model = ResidualCNN()
-    if model_path is not None:
-        cur_model.load(model_path)
 
-    # Train!
     # Sample a portion of training data before training
     sampled_idx = np.random.choice(len(board_x), int(data_retention * len(board_x)), replace=False)
     sampled_board_x = board_x[sampled_idx]
     sampled_pi_y = pi_y[sampled_idx]
     sampled_v_y = v_y[sampled_idx]
 
-    # for _ in range(EPOCHS):
     cur_model.model.fit(sampled_board_x, [sampled_pi_y, sampled_v_y],
         batch_size=BATCH_SIZE,
         epochs=EPOCHS,
         shuffle=True)
 
-    cur_model.save(SAVE_MODELS_DIR, version)
+    cur_model.save_weights(SAVE_WEIGHTS_DIR, MODEL_PREFIX, version)
+    # cur_model.save(SAVE_MODELS_DIR, MODEL_PREFIX, version)
 
 
 
@@ -147,18 +145,18 @@ def evolve(cur_model_path):
         model2_path = None
         if SELF_PLAY_DIFF_MODEL and ITERATION_COUNT > 1:
             model2_version = get_rand_prev_version(ITERATION_COUNT)
-            model2_path = get_model_path_from_version(model2_version)
+            model2_path = get_weights_path_from_version(model2_version)
             utils.stress_message('.. and vs. Version {}'.format(model2_version))
 
         games = generate_self_play_in_parallel(cur_model_path, NUM_SELF_PLAY, NUM_WORKERS, model2_path)
 
         # Convert self-play games to training data
-        board_x, pi_y, v_y = convert_to_train_data(games)
-        board_x, pi_y, v_y = augment_train_data(board_x, pi_y, v_y)
+        board_x, pi_y, v_y = utils.convert_to_train_data(games)
+        board_x, pi_y, v_y = utils.augment_train_data(board_x, pi_y, v_y)
 
         # Numpyify and save for later iterations
         board_x, pi_y, v_y = np.array(board_x), np.array(pi_y), np.array(v_y)
-        save_train_data(board_x, pi_y, v_y, version=ITERATION_COUNT)
+        utils.save_train_data(board_x, pi_y, v_y, version=ITERATION_COUNT)
 
         # Get prev iters training data
         board_x, pi_y, v_y, data_iters_used = combine_prev_iters_train_data(board_x, pi_y, v_y)
@@ -175,7 +173,8 @@ def evolve(cur_model_path):
         training_process.join()
 
         # Update path variable since we made a new version
-        cur_model_path = get_model_path_from_version(ITERATION_COUNT)
+        # cur_model_path = get_model_path_from_version(ITERATION_COUNT)
+        cur_model_path = get_weights_path_from_version(ITERATION_COUNT)
 
         # Update version number
         ITERATION_COUNT += 1
@@ -205,60 +204,7 @@ def combine_prev_iters_train_data(board_x, pi_y, v_y):
     pi_y = np.vstack(all_pi_y)
     v_y = np.hstack(all_v_y)                        # hstack as v_y is 1D array
 
-    return board_x, pi_y, v_y, len(all_board_x)     # Last item is total iterations used
-
-
-
-def save_train_data(board_x, pi_y, v_y, version):
-    ''' Write current iteration training data to disk '''
-    if not os.path.exists(SAVE_TRAIN_DATA_DIR):
-        os.makedirs(SAVE_TRAIN_DATA_DIR)
-
-    with h5py.File('{}/{}{}.h5'.format(SAVE_TRAIN_DATA_DIR, SAVE_TRAIN_DATA_PREF, version), 'w') as H:
-        H.create_dataset('board_x', data=board_x)
-        H.create_dataset('pi_y', data=pi_y)
-        H.create_dataset('v_y', data=v_y)
-
-
-
-def convert_to_train_data(self_play_games):
-    ''' Return python lists containing training data '''
-    board_x, pi_y, v_y = [], [], []
-    for game in self_play_games:
-        history, reward = game
-        curr_player = PLAYER_ONE
-        for board, pi in history:
-            board_x.append(Model.to_model_input(board, curr_player))
-            pi_y.append(pi)
-            v_y.append(reward)
-            reward = -reward
-            curr_player = PLAYER_ONE + PLAYER_TWO - curr_player
-
-    return board_x, pi_y, v_y
-
-
-
-def augment_train_data(board_x, pi_y, v_y):
-    ''' Augment training data by horizontal flipping of the board '''
-    new_board_x, new_pi_y, new_v_y = [], [], []
-    for i in range(len(board_x)):
-        new_board = np.copy(board_x[i])
-        new_pi = np.copy(pi_y[i])
-        new_v = v_y[i]
-
-        # Flip the board along the other diagonal, in the last dimension
-        for j in range(new_board.shape[-1]):
-            new_board[:, :, j] = np.fliplr(np.rot90(new_board[:, :, j]))
-
-        new_board_x.append(new_board)
-        new_pi_y.append(new_pi)
-        new_v_y.append(new_v)
-
-    board_x += new_board_x
-    pi_y += new_pi_y
-    v_y += new_v_y
-
-    return board_x, pi_y, v_y   # Return the same references
+    return board_x, pi_y, v_y, len(all_board_x)     # Last retval is total iterations used
 
 
 
@@ -266,8 +212,12 @@ def get_model_path_from_version(version):
     return '{}/{}{:0>4}.h5'.format(SAVE_MODELS_DIR, MODEL_PREFIX, version)
 
 
+def get_weights_path_from_version(version):
+    return '{}/{}{:0>4}-weights.h5'.format(SAVE_WEIGHTS_DIR, MODEL_PREFIX, version)
+
+
 def get_rand_prev_version(upper):
-    return np.random.randint(upper//2, upper)
+    return np.random.randint(upper // 2, upper)
 
 
 

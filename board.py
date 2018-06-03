@@ -7,7 +7,7 @@ from collections import deque
 
 
 class Board:
-    def __init__(self):
+    def __init__(self, randomised=False):
         """
         Get the numpy array representing this board.
         Array is shaped 7x7x3, where the first 7x7 plane
@@ -53,6 +53,38 @@ class Board:
 
         self.hist_moves = deque()
 
+        if randomised:
+            self.randomise_initial_state()
+
+
+
+    def randomise_initial_state(self):
+        '''
+        Randomise the starting state of board
+        '''
+        self.board[:, :, 0] = 0
+        position_list = [(row, col) for row in range(BOARD_HEIGHT) for col in range(BOARD_WIDTH)]
+
+        # Randomly choose 12 positions and put checkers there
+        chosen_indexes = np.random.choice(len(position_list), size=NUM_CHECKERS*2, replace=False)
+        chosen_position = [position_list[i] for i in chosen_indexes]
+
+        self.checkers_pos = [None, {}, {}]
+        self.checkers_id = [None, {}, {}]
+
+        # Take care to initialise the checkers_pos/checkers_id lookup table
+        index = 0
+        for player_num in [PLAYER_ONE, PLAYER_TWO]:
+            for checker_id in range(NUM_CHECKERS):
+                checker_pos = chosen_position[index]
+                self.board[checker_pos][0] = player_num
+                self.checkers_pos[player_num][checker_id] = checker_pos
+                self.checkers_id[player_num][checker_pos] = checker_id
+                index += 1
+
+        assert index == NUM_CHECKERS * 2
+
+
 
     def check_win(self):
         """
@@ -79,6 +111,7 @@ class Board:
         return PLAYER_ONE if one_win else PLAYER_TWO
 
 
+
     def visualise(self, cur_player=None, gap_btw_checkers=3):
         """
         Prints the current board for human visualisation
@@ -100,6 +133,7 @@ class Board:
             print((' ' * gap_btw_checkers).join(map(str, cur_board.diagonal(BOARD_WIDTH - i))), end='\n\n')  # Board contents
 
         print('=' * 75)
+
 
 
     def valid_checker_moves(self, cur_player, checker_pos):
@@ -126,6 +160,7 @@ class Board:
         self.board[checker_pos[0], checker_pos[1], 0] = cur_player;     # Put back current checker
         result.remove(checker_pos)                                      # Don't allow staying
         return result
+
 
 
     def valid_checker_jump_moves(self, valid_moves, check_map, checker_pos):
@@ -176,6 +211,7 @@ class Board:
             self.valid_checker_jump_moves(valid_moves, check_map, (row, col))
 
 
+
     def get_valid_moves(self, cur_player):
         """
         Returns the collection of valid moves given the current player, in np indices
@@ -184,6 +220,7 @@ class Board:
         for checker_pos in self.checkers_pos[cur_player].values():
             valid_moves_set[checker_pos] = self.valid_checker_moves(cur_player, checker_pos)
         return valid_moves_set
+
 
 
     def place(self, cur_player, origin_pos, dest_pos):
@@ -207,12 +244,11 @@ class Board:
 
         # Record history moves
         if len(self.hist_moves) == TOTAL_HIST_MOVES:
-            # self.hist_moves = self.hist_moves[1:]
             self.hist_moves.popleft()
-
         self.hist_moves.append((origin_pos,dest_pos))
 
         return self.check_win()
+
 
 
     def player_progress(self, player_id):
@@ -228,6 +264,7 @@ class Board:
                 if i == player_id:
                     reached_checkers_num += 1;
         return reached_checkers_num
+
 
 
     def player_forward_distance(self, player_id):
@@ -249,6 +286,7 @@ class Board:
                 distance += row
 
         return distance
+
 
 
 if __name__ == '__main__':

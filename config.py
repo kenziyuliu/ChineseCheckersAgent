@@ -18,14 +18,15 @@ TOTAL_HIST_MOVES = 16                       # Total number of history moves to k
 UNIQUE_DEST_LIMIT = 3
 
 ''' MCTS and RL '''
-PROGRESS_MOVE_LIMIT = 72
+PROGRESS_MOVE_LIMIT = 84
+REWARD = {'lose' : -1, 'draw' : 0, 'win' : 1}
+REWARD_FACTOR = 10                          # Scale the reward if necessary
 TREE_TAU = 1
-REWARD = {"lose" : -10, "draw" : 0, "win" : 10}
-C_PUCT = 1
-MCTS_SIMULATIONS = 20#144
+C_PUCT = 3
+MCTS_SIMULATIONS = 180
 EPSILON = 1e-5
+TOTAL_MOVES_TILL_TAU0 = 6
 DIST_THRES_FOR_REWARD = 2                   # Threshold for reward for player forward distance difference
-TOTAL_MOVES_TILL_TAU0 = 24
 
 ''' Dirichlet Noise '''
 DIRICHLET_ALPHA = 0.03                      # Alpha for ~ Dir(), assuming symmetric Dirichlet distribution
@@ -35,25 +36,60 @@ DIR_NOISE_FACTOR = 0.25                     # Weight of Dirichlet noise on root 
 # Model input dimensions
 INPUT_DIM = (BOARD_WIDTH, BOARD_HEIGHT, BOARD_HIST_MOVES * 2 + 1)
 NUM_FILTERS = 64                            # Default number of filters for conv layers
-NUM_RESIDUAL_BLOCKS = 16                    # Number of residual blocks in the model
+NUM_RESIDUAL_BLOCKS = 12                    # Number of residual blocks in the model
+
+''' Loss Weights depending on training '''
+LOSS_WEIGHTS = {'policy_head': 1., 'value_head': 1.}
 
 ''' Train '''
 SAVE_MODELS_DIR = 'saved-models/'
+SAVE_WEIGHTS_DIR = 'saved-weights/'
 MODEL_PREFIX = 'version'
 SAVE_TRAIN_DATA_DIR = 'generated-training-data/'
 SAVE_TRAIN_DATA_PREF = 'data-for-iter-'
 PAST_ITER_COUNT = 3                         # Number of past iterations to use
-NUM_WORKERS = 12                            # For generating self plays in parallel
-NUM_SELF_PLAY = 72                          # Total number of self plays to generate
-DEF_DATA_RETENTION_RATE = 0.5               # Default percentage of training data to keep when sampling
+DEF_DATA_RETENTION_RATE = 0.5              # Default percentage of training data to keep when sampling
 BATCH_SIZE = 32
 REG_CONST = 6e-5                            # Weight decay constant (l1/l2 regularizer)
 LEARNING_RATE = 0.001                       # Traning learning rate
 REGULARIZER = regularizers.l2(REG_CONST)    # Default kernal regularizer
-EPOCHS = 50                                 # Training Epochs
-SELF_PLAY_DIFF_MODEL = True
+EPOCHS = 24                                 # Training Epochs
+NUM_SELF_PLAY = 72                          # Total number of self plays to generate
+NUM_WORKERS = 12                            # For generating self plays in parallel
+SELF_PLAY_DIFF_MODEL = False
+
+''' Greedy-Supervised Training '''
+G_NUM_GAMES = 60000
+G_DATA_RETENTION_RATE = 0.2
+G_NORMAL_GAME_RATIO = 0.1
+G_MODEL_PREFIX = 'greedy-model'
+G_EPOCHS = 30
+G_BATCH_SIZE = 32
+G_NUM_VAL_DATA = 3000
 
 ''' Greedy Data Generator '''
 THRESHOLD_FOR_RANDOMIZATION = 2
 AVERAGE_TOTAL_MOVE = 43
-STUCK_TIME_LIMIT = 5
+STUCK_TIME_LIMIT = 0.1
+
+"""
+NOTE:
+When training in greedy:
+    - use lower regulurisation (6e-5)
+    - 0.01 weight on value head
+    - Less epoch (~25)
+    - 12 workers
+
+When training in RL:
+    - higher REG (1e-4) OR stay the same (6e-5)
+    - 1. weight on both value and policy head
+    - ~25 Epoch
+    - 12 Workers
+    - ~144 MCTS Simulations
+    - TREE_TAU = 1
+
+When testing:
+    - TREE_TAU = 0.01
+    - MCST Similations = depending on need
+
+"""
