@@ -24,6 +24,9 @@ This file coordinates training procedure, including:
 
 # Count the number of training iterations done; used for naming models
 ITERATION_COUNT = 0
+# Best Model for generating selfplays
+BEST_MODEL = None
+
 
 def generate_self_play(worker_id, model_path, num_self_play, model2_path=None):
     # Re-seed the generators: since the RNG was copied from parent process
@@ -52,15 +55,17 @@ def generate_self_play(worker_id, model_path, num_self_play, model2_path=None):
             model2 = ResidualCNN()
             model2.load_weights(model2_path)
             print('Worker {}: 2nd model load successful'.format(worker_id))
-
+        else:
+            print ('Worker {}: Model2 is None; using Model1 to generate selfplays'.format(worker_id))
     else:
         print('Worker {}: using un-trained model'.format(worker_id))
 
     # Worker start generating self plays according to their workload
     worker_result = []
     for i in range(num_self_play):
-        play_history, outcome = selfplay(model, model2)
-        worker_result.append((play_history, outcome))
+        play_history, p1_reward = selfplay(model, model2, randomised=False)
+        if play_history is not None and p1_reward is not None:
+            worker_result.append((play_history, p1_reward))
         print('Worker {}: generated {} self-plays'.format(worker_id, len(worker_result)))
 
     return worker_result
@@ -79,15 +84,26 @@ def generate_self_play_in_parallel(model_path, num_self_play, num_workers, model
             work_share += (num_self_play % num_workers)
 
         # Send workers
-        result_async = process_pool.apply_async(generate_self_play, args=(i + 1, model_path, work_share, model2_path))
+        result_async = process_pool.apply_async(
+            generate_self_play,
+            args=(i + 1, model_path, work_share, model2_path))
         worker_results.append(result_async)
 
-    # Join processes and summarise the generated final list of games
-    game_list = []
-    for result in worker_results:
-        game_list += result.get()
+    try:
+        # Join processes and summarise the generated final list of games
+        game_list = []
+        for result in worker_results:
+            game_list += result.get()
 
-    process_pool.close()
+        process_pool.close()
+
+    # Exit early if need
+    except KeyboardInterrupt:
+        utils.stress_message('SIGINT caught, exiting')
+        process_pool.terminate()
+        process_pool.join()
+        exit()
+
     process_pool.join()
 
     return game_list
@@ -116,7 +132,6 @@ def train(model_path, board_x, pi_y, v_y, data_retention, version):
         assert model_path is not None
         cur_model.load_weights(model_path)
 
-
     # Sample a portion of training data before training
     sampled_idx = np.random.choice(len(board_x), int(data_retention * len(board_x)), replace=False)
     sampled_board_x = board_x[sampled_idx]
@@ -133,22 +148,122 @@ def train(model_path, board_x, pi_y, v_y, data_retention, version):
 
 
 
-def evolve(cur_model_path):
-    while True:
-        global ITERATION_COUNT
+def evaluate(worker_id, best_model, cur_model, num_games):
+    # Re-seed the generators: since the RNG was copied from parent process
+    np.random.seed()        # None seed to source from /dev/urandom
+    random.seed()
 
+    # Load the current model in the worker only for prediction and set GPU limit
+    import tensorflow as tf
+    tf_config = tf.ConfigProto()
+    tf_config.gpu_options.allow_growth = True
+    session = tf.Session(config=tf_config)
+
+    from keras.backend.tensorflow_backend import set_session
+    set_session(session=session)
+
+    from ai_vs_ai import agent_match
+
+    cur_model_wincount = 0
+    best_model_wincount = 0
+    draw_count = 0
+    for i in range(num_games):
+        # Alternate players
+        if i % 2 == 0:
+            winner = agent_match(best_model, cur_model, num_games=1)
+        else:
+            winner = agent_match(cur_model, best_model, num_games=1)
+
+        if winner == cur_model:
+            cur_model_wincount += 1
+        elif winner == best_model:
+            best_model_wincount += 1
+        else:
+            draw_count += 1
+
+    print('Worker {}: cur_model "{}" wins {}/{} games'.format(worker_id, cur_model, cur_model_wincount, num_games))
+    print('Worker {}: best_model "{}" wins {}/{} games'.format(worker_id, best_model, best_model_wincount, num_games))
+    print('Worker {}: {}/{} games were draw'.format(worker_id, draw_count, num_games))
+    return cur_model_wincount
+
+
+
+def evaluate_in_parallel(best_model, cur_model, num_games, num_workers):
+    utils.stress_message('Evaluating model "{}" against current best model "{}" on {} games'
+        .format(cur_model, best_model, num_games), True)
+
+    # Process pool for parallelism
+    process_pool = mp.Pool(processes=num_workers)
+    work_share = num_games // num_workers
+    worker_results = []
+
+    # Send processes to generate self plays
+    for i in range(num_workers):
+        if i == num_workers - 1:
+            work_share += (num_games % num_workers)
+
+        # Send workers
+        result_async = process_pool.apply_async(
+            evaluate,
+            args=(i + 1, best_model, cur_model, work_share))
+        worker_results.append(result_async)
+
+    try:
+        # Join processes and count games
+        cur_model_wincount = 0
+        for result in worker_results:
+            cur_model_wincount += result.get()
+
+        process_pool.close()
+
+    # Exit early if need
+    except KeyboardInterrupt:
+        utils.stress_message('SIGINT caught, exiting')
+        process_pool.terminate()
+        process_pool.join()
+        exit()
+
+
+    process_pool.join()
+
+    utils.stress_message('Overall, cur_model "{}" wins {}/{} against best_model "{}"'
+        .format(cur_model, cur_model_wincount, num_games, best_model), True)
+
+    return cur_model_wincount
+
+
+
+def evolve(cur_model_path):
+    global ITERATION_COUNT
+    global BEST_MODEL
+
+    while True:
         # print some useful message
-        cur_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         message = 'At {}, Starting to generate self-plays for Version {}'.format(utils.cur_time(), ITERATION_COUNT)
         utils.stress_message(message, True)
 
-        model2_path = None
-        if SELF_PLAY_DIFF_MODEL and ITERATION_COUNT > 1:
-            model2_version = get_rand_prev_version(ITERATION_COUNT)
-            model2_path = get_weights_path_from_version(model2_version)
-            utils.stress_message('.. and vs. Version {}'.format(model2_version))
+        ##########################
+        ##### GENERATE PLAYS #####
+        ##########################
 
-        games = generate_self_play_in_parallel(cur_model_path, NUM_SELF_PLAY, NUM_WORKERS, model2_path)
+        if BEST_MODEL is not None:
+            print('(Generating games using given best model: {})'.format(BEST_MODEL))
+            games = generate_self_play_in_parallel(BEST_MODEL, NUM_SELF_PLAY, NUM_WORKERS)
+        else:
+            # # Use previous version to generate selfplay if necessary
+            # model2_path = None
+            # if SELF_PLAY_DIFF_MODEL and ITERATION_COUNT > 1:
+            #     model2_version = get_rand_prev_version(ITERATION_COUNT)
+            #     model2_path = get_weights_path_from_version(model2_version)
+            #     utils.stress_message('.. and vs. Version {}'.format(model2_version))
+            #
+            # games = generate_self_play_in_parallel(cur_model_path, NUM_SELF_PLAY, NUM_WORKERS, model2_path)
+            games = generate_self_play_in_parallel(cur_model_path, NUM_SELF_PLAY, NUM_WORKERS)
+
+
+        ##########################
+        ##### PREPARING DATA #####
+        ##########################
 
         # Convert self-play games to training data
         board_x, pi_y, v_y = utils.convert_to_train_data(games)
@@ -156,14 +271,24 @@ def evolve(cur_model_path):
 
         # Numpyify and save for later iterations
         board_x, pi_y, v_y = np.array(board_x), np.array(pi_y), np.array(v_y)
-        utils.save_train_data(board_x, pi_y, v_y, version=ITERATION_COUNT)
+        if len(board_x) > 0 and len(pi_y) > 0 and len(v_y) > 0:
+            utils.save_train_data(board_x, pi_y, v_y, version=ITERATION_COUNT)
 
         # Get prev iters training data
         board_x, pi_y, v_y, data_iters_used = combine_prev_iters_train_data(board_x, pi_y, v_y)
         assert len(board_x) == len(pi_y) == len(v_y)
 
+        # Train only if there were data
+        if data_iters_used == 0:
+            utils.stress_message('No training data for iteration {}! Re-iterating...'.format(ITERATION_COUNT))
+            continue
+
         # Calculate training set retention rate including current iteration; use default if too high
         data_retention_rate = min(1. / data_iters_used, DEF_DATA_RETENTION_RATE)
+
+        #################
+        ##### TRAIN #####
+        #################
 
         # Use a *new process* to train since we DONT want to load TF in the parent process
         training_process = mp.Process(
@@ -176,35 +301,55 @@ def evolve(cur_model_path):
         # cur_model_path = get_model_path_from_version(ITERATION_COUNT)
         cur_model_path = get_weights_path_from_version(ITERATION_COUNT)
 
+        ####################
+        ##### EVALUATE #####
+        ####################
+
+        if BEST_MODEL is not None:
+            cur_model_wincount = evaluate_in_parallel(BEST_MODEL, cur_model_path, EVAL_GAMES, NUM_WORKERS)
+            if cur_model_wincount > int(0.55 * EVAL_GAMES):
+                BEST_MODEL = cur_model_path
+                utils.stress_message('Now using {} as the best model'.format(BEST_MODEL))
+            else:
+                utils.stress_message('Output model of this iteration is not better; retaining {} as the best model'.format(BEST_MODEL), True)
+
         # Update version number
         ITERATION_COUNT += 1
 
 
 
 def combine_prev_iters_train_data(board_x, pi_y, v_y):
+    all_board_x, all_pi_y, all_v_y = [], [], []
+
+    if len(board_x) > 0 and len(pi_y) > 0 and len(v_y) > 0:
+        all_board_x.append(board_x)
+        all_pi_y.append(pi_y)
+        all_v_y.append(v_y)
+
     # Read data from previous iterations
-    all_board_x, all_pi_y, all_v_y = [board_x], [pi_y], [v_y]
     for i in range(ITERATION_COUNT - PAST_ITER_COUNT, ITERATION_COUNT):
-        if i < 0:
-            continue
+        if i >= 0:
+            filename = '{}/{}{}.h5'.format(SAVE_TRAIN_DATA_DIR, SAVE_TRAIN_DATA_PREF, i)
 
-        filename = '{}/{}{}.h5'.format(SAVE_TRAIN_DATA_DIR, SAVE_TRAIN_DATA_PREF, i)
+            if not os.path.exists(filename):
+                utils.stress_message('{} does not exist!'.format(filename))
+                continue
 
-        if not os.path.exists(filename):
-            utils.stress_message('{} does not exist!'.format(filename))
-            continue
+            with h5py.File(filename, 'r') as H:
+                all_board_x.append(np.copy(H['board_x']))
+                all_pi_y.append(np.copy(H['pi_y']))
+                all_v_y.append(np.copy(H['v_y']))
 
-        with h5py.File(filename, 'r') as H:
-            all_board_x.append(np.copy(H['board_x']))
-            all_pi_y.append(np.copy(H['pi_y']))
-            all_v_y.append(np.copy(H['v_y']))
+    if len(all_board_x) > 0 and len(all_pi_y) > 0 and len(all_v_y) > 0:
+        # Make a pool of training data from previous iterations
+        board_x = np.vstack(all_board_x)
+        pi_y = np.vstack(all_pi_y)
+        v_y = np.hstack(all_v_y)                        # hstack as v_y is 1D array
 
-    # Make a pool of training data from previous iterations
-    board_x = np.vstack(all_board_x)
-    pi_y = np.vstack(all_pi_y)
-    v_y = np.hstack(all_v_y)                        # hstack as v_y is 1D array
+        return board_x, pi_y, v_y, len(all_board_x)     # Last retval is total iterations used
 
-    return board_x, pi_y, v_y, len(all_board_x)     # Last retval is total iterations used
+    # If no data at all: return empty training data
+    return [], [], [], 0
 
 
 
@@ -223,13 +368,17 @@ def get_rand_prev_version(upper):
 
 if __name__ == '__main__':
     model_path = None
-    if len(sys.argv) != 1:
+    if len(sys.argv) > 1:
         model_path = sys.argv[1]
         try:
             # Read the count from file name
-            ITERATION_COUNT = int(re.search('{}(.+?)\.h5'.format(MODEL_PREFIX), model_path).group(1)) + 1
+            ITERATION_COUNT = utils.find_version_given_filename(model_path) + 1
         except:
             ITERATION_COUNT = 0
+
+        if len(sys.argv) > 2:
+            BEST_MODEL = sys.argv[2]
+            print('\nUsing {} as the best model for generating selfplays\n'.format(BEST_MODEL))
 
     utils.stress_message('Start to training from version: {}'.format(ITERATION_COUNT), True)
     evolve(model_path)

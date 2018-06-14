@@ -1,5 +1,3 @@
-from keras import regularizers
-
 ''' Player '''
 # Fixed 2 player
 PLAYER_ONE = 1
@@ -17,17 +15,6 @@ PLAYER_TWO_DISTANCE_OFFSET = -14
 TOTAL_HIST_MOVES = 16                       # Total number of history moves to keep for checking repetitions
 UNIQUE_DEST_LIMIT = 3
 
-''' MCTS and RL '''
-PROGRESS_MOVE_LIMIT = 84
-REWARD = {'lose' : -1, 'draw' : 0, 'win' : 1}
-REWARD_FACTOR = 10                          # Scale the reward if necessary
-TREE_TAU = 1
-C_PUCT = 3
-MCTS_SIMULATIONS = 180
-EPSILON = 1e-5
-TOTAL_MOVES_TILL_TAU0 = 6
-DIST_THRES_FOR_REWARD = 2                   # Threshold for reward for player forward distance difference
-
 ''' Dirichlet Noise '''
 DIRICHLET_ALPHA = 0.03                      # Alpha for ~ Dir(), assuming symmetric Dirichlet distribution
 DIR_NOISE_FACTOR = 0.25                     # Weight of Dirichlet noise on root prior probablities
@@ -38,8 +25,21 @@ INPUT_DIM = (BOARD_WIDTH, BOARD_HEIGHT, BOARD_HIST_MOVES * 2 + 1)
 NUM_FILTERS = 64                            # Default number of filters for conv layers
 NUM_RESIDUAL_BLOCKS = 12                    # Number of residual blocks in the model
 
+''' MCTS and RL '''
+PROGRESS_MOVE_LIMIT = 100
+REWARD = {'lose' : -1, 'draw' : 0, 'win' : 1}
+REWARD_FACTOR = 10                          # Scale the reward if necessary
+TREE_TAU = 1
+DET_TREE_TAU = 0.01
+C_PUCT = 3
+MCTS_SIMULATIONS = 150
+EPSILON = 1e-5
+TOTAL_MOVES_TILL_TAU0 = 6
+DIST_THRES_FOR_REWARD = 2                   # Threshold for reward for player forward distance difference
+EVAL_GAMES = 48
+
 ''' Loss Weights depending on training '''
-LOSS_WEIGHTS = {'policy_head': 1., 'value_head': 1.}
+LOSS_WEIGHTS = {'policy_head': 1., 'value_head': 0.01}
 
 ''' Train '''
 SAVE_MODELS_DIR = 'saved-models/'
@@ -47,12 +47,11 @@ SAVE_WEIGHTS_DIR = 'saved-weights/'
 MODEL_PREFIX = 'version'
 SAVE_TRAIN_DATA_DIR = 'generated-training-data/'
 SAVE_TRAIN_DATA_PREF = 'data-for-iter-'
-PAST_ITER_COUNT = 3                         # Number of past iterations to use
-DEF_DATA_RETENTION_RATE = 0.5              # Default percentage of training data to keep when sampling
+PAST_ITER_COUNT = 1                         # Number of past iterations to use
+DEF_DATA_RETENTION_RATE = 0.5               # Default percentage of training data to keep when sampling
 BATCH_SIZE = 32
-REG_CONST = 6e-5                            # Weight decay constant (l1/l2 regularizer)
-LEARNING_RATE = 0.001                       # Traning learning rate
-REGULARIZER = regularizers.l2(REG_CONST)    # Default kernal regularizer
+REG_CONST = 1e-4                            # Weight decay constant (l1/l2 regularizer)
+LEARNING_RATE = 0.01                       # Traning learning rate
 EPOCHS = 24                                 # Training Epochs
 NUM_SELF_PLAY = 72                          # Total number of self plays to generate
 NUM_WORKERS = 12                            # For generating self plays in parallel
@@ -89,7 +88,7 @@ When training in RL:
     - TREE_TAU = 1
 
 When testing:
-    - TREE_TAU = 0.01
+    - Use DET_TREE_TAU, which is already set in Game.py  (Or TREE_TAU = 0.01)
     - MCST Similations = depending on need
 
 """

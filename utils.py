@@ -13,7 +13,8 @@ def find_version_given_filename(filename):
     pattern = '({}|{})([0-9]{{4}})(-weights|)\.h5'.format(MODEL_PREFIX, G_MODEL_PREFIX)
     matches = re.search(pattern, filename)
     if matches is None:
-        raise ValueError('No 4-digit version number found in filename!')
+        print('No 4-digit version number found in filename "{}"!'.format(filename))
+        return -1
 
     return int(matches.group(2))
 

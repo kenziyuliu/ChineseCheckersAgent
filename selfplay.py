@@ -1,3 +1,4 @@
+import copy
 import numpy as np
 
 import utils
@@ -6,7 +7,7 @@ from board import Board
 from MCTS import MCTS, Node
 
 
-def selfplay(model1, model2, randomised=False):
+def selfplay(model1, model2=None, randomised=False):
     '''
     Generate an agent self-play given two models
     TODO: if `randomised`, randomise starting board state
@@ -55,11 +56,11 @@ def selfplay(model1, model2, randomised=False):
         # Change TREE_TAU to very small if game has certain progress so actions are deterministic
         if len(play_history) > TOTAL_MOVES_TILL_TAU0:
             if tree_tau == TREE_TAU:
-                print('Changing tree_tau to 0.01 as total number of moves is now {}'.format(len(play_history)))
-            tree_tau = 0.01
+                print('selfplay: Changing tree_tau to {} as total number of moves is now {}'.format(DET_TREE_TAU, len(play_history)))
+            tree_tau = DET_TREE_TAU
 
         if root.state.check_win():
-            utils.stress_message('END GAME REACHED')
+            print('END GAME REACHED')
             break
 
         # Stop (and discard) the game if it's nonsense
@@ -82,7 +83,7 @@ def make_move(root, model, tree_tau, play_history):
     (Code inside original while loop of selfplay())
     '''
     assert root.isLeaf()
-    tree = MCTS(root, model)
+    tree = MCTS(root, model, tree_tau=tree_tau)
 
     # Make the first expansion to possible next states
     tree.expandAndBackUp(tree.root, breadcrumbs=[])     # breadcrumbs=[] as root has empth path back to root
@@ -97,11 +98,11 @@ def make_move(root, model, tree_tau, play_history):
     # Decide next move from the root with 1 level of prior probability
     pi, sampled_edge = tree.search()
     play_history.append((tree.root.state, pi))
-    
+
     outNode = sampled_edge.outNode
     outNode.edges.clear()
 
-    return outNode # root for next iteration
+    return copy.deepcopy(outNode) # root for next iteration
 
 
 # def get_reward(board):

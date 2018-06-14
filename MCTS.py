@@ -40,7 +40,6 @@ class Edge:
 class MCTS:
     def __init__(self, root, model, cpuct=C_PUCT, num_itr=MCTS_SIMULATIONS, tree_tau=TREE_TAU):
         self.root = root
-        self.tree = {}
         self.cpuct = cpuct
         self.num_itr = num_itr
         self.model = model

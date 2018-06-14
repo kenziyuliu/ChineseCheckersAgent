@@ -1,12 +1,15 @@
+import os
+import copy
+import random
 import numpy as np
+
 import board_utils
 from config import *
-import copy
-import os
-import random
-from MCTS import *
-from board import *
 from model import *
+from board import Board
+from MCTS import Node, MCTS
+
+
 
 """
 Both players must support decide_move(self, board, verbose) method
@@ -15,7 +18,6 @@ Both players must support decide_move(self, board, verbose) method
 class HumanPlayer:
     def __init__(self, player_num):
         self.player_num = player_num
-        # TODO: include more members if needed
 
     def decide_move(self, board, verbose=True, total_moves=None):
         """
@@ -49,8 +51,8 @@ class HumanPlayer:
                 print("\nInvalid Move Format! Try again!")
                 continue
 
-            (from_i, from_j), (to_i, to_j) = board_utils.human_coord_to_np_index((human_from_row, human_from_col)), \
-                                             board_utils.human_coord_to_np_index((human_to_row, human_to_col))
+            from_i, from_j = board_utils.human_coord_to_np_index((human_from_row, human_from_col))
+            to_i, to_j = board_utils.human_coord_to_np_index((human_to_row, human_to_col))
 
             if (from_i, from_j) in valid_moves and (to_i, to_j) in valid_moves[(from_i, from_j)]:
                 break
@@ -103,9 +105,10 @@ class GreedyPlayer:
 
 
 class AiPlayer:
-    def __init__(self, player_num, model):
+    def __init__(self, player_num, model, tree_tau):
         self.player_num = player_num
         self.model = model
+        self.tree_tau = tree_tau
 
     def decide_move(self, board, verbose=False, total_moves=None):
         """
@@ -119,11 +122,13 @@ class AiPlayer:
 
         node = Node(board, self.player_num)
 
-        tree_tau = TREE_TAU
+        # Play deterministically when moves reach a certain number
         if total_moves is not None and total_moves > TOTAL_MOVES_TILL_TAU0:
-            tree_tau = 0.01
+            if self.tree_tau != DET_TREE_TAU:
+                print('Player {}: changing tree tau from {} to {}'.format(self.player_num, self.tree_tau, DET_TREE_TAU))
+            self.tree_tau = DET_TREE_TAU
 
-        tree = MCTS(node, self.model, tree_tau=tree_tau)
+        tree = MCTS(node, self.model, tree_tau=self.tree_tau)
         pi, sampled_edge = tree.search()
         if verbose:
             print('Ai Version {} moved from {} to {}\n'.format(
@@ -133,6 +138,4 @@ class AiPlayer:
 
 
 if __name__ == "__main__":
-    ai = AiPlayer(1)
-    board = Board()
-    print(ai.decide_move(board))
+    pass

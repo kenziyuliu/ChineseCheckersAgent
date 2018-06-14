@@ -34,7 +34,7 @@ class Model:
         if not os.path.exists(save_dir):
             os.makedirs(save_dir)
         self.model.save_weights('{}/{}{:0>4}-weights.h5'.format(save_dir, prefix, version))
-        utils.stress_message('Saved model weights "{}{:0>4}-weights" to "{}"'.format(prefix, version, save_dir))
+        utils.stress_message('Saved model weights "{}{:0>4}-weights" to "{}"'.format(prefix, version, save_dir), True)
 
     def load(self, filepath):
         self.model = load_model(
@@ -57,17 +57,20 @@ class ResidualCNN(Model):
 
     def build_model(self):
         main_input = Input(shape=self.input_dim)
-        x = self.conv_block(main_input, self.filters, 3, REGULARIZER)
+        regularizer = regularizers.l2(REG_CONST)
+
+        x = self.conv_block(main_input, self.filters, 3, regularizer)
 
         for _ in range(NUM_RESIDUAL_BLOCKS):
-            x = self.residual_block(x, self.filters, 3, REGULARIZER)
+            x = self.residual_block(x, self.filters, 3, regularizer)
 
-        value = self.value_head(x, REGULARIZER)
-        policy = self.policy_head(x, REGULARIZER)
+        value = self.value_head(x, regularizer)
+        policy = self.policy_head(x, regularizer)
 
         model = KerasModel(inputs=[main_input], outputs=[policy, value])
         model.compile(loss={"policy_head":softmax_cross_entropy_with_logits, "value_head":"mean_squared_error"},
-                        optimizer=Adam(lr=LEARNING_RATE),
+                        # optimizer=Adam(lr=LEARNING_RATE),
+                        optimizer=SGD(lr=LEARNING_RATE, momentum=0.9, nesterov=True),
                         loss_weights=LOSS_WEIGHTS)
         return model
 

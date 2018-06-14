@@ -6,7 +6,7 @@ from board import Board
 from config import *
 
 class Game:
-    def __init__(self, p1_type=None, p2_type=None, verbose=True, model1=None, model2=None):
+    def __init__(self, p1_type=None, p2_type=None, verbose=True, model1=None, model2=None, tree_tau=DET_TREE_TAU):
 
         if p1_type is None or p2_type is None:
             p1_type, p2_type = self.get_player_types()
@@ -19,14 +19,14 @@ class Game:
         elif p1_type == 'g':
             self.player_one = GreedyPlayer(player_num=1)
         else:
-            self.player_one = AiPlayer(player_num=1, model=model1)
+            self.player_one = AiPlayer(player_num=1, model=model1, tree_tau=tree_tau)
 
         if p2_type == 'h':
             self.player_two = HumanPlayer(player_num=2)
         elif p2_type == 'g':
             self.player_two = GreedyPlayer(player_num=2)
         else:
-            self.player_two = AiPlayer(player_num=2, model=model2)
+            self.player_two = AiPlayer(player_num=2, model=model2, tree_tau=tree_tau)
 
         self.cur_player = self.player_one
         self.next_player = self.player_two
@@ -56,6 +56,7 @@ class Game:
 
 
     def start(self):
+        np.random.seed()
         total_moves = 0
         history_dests = deque()
         while True:
@@ -87,7 +88,7 @@ class Game:
 
         if winner is not None:
             print('Player {} wins!'.format(winner))
-            
+
         return winner
 
 
