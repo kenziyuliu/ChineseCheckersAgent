@@ -170,9 +170,9 @@ def evaluate(worker_id, best_model, cur_model, num_games):
     for i in range(num_games):
         # Alternate players
         if i % 2 == 0:
-            winner = agent_match(best_model, cur_model, num_games=1)
+            winner = agent_match(best_model, cur_model, num_games=1, enforce_move_limit=True)
         else:
-            winner = agent_match(cur_model, best_model, num_games=1)
+            winner = agent_match(cur_model, best_model, num_games=1, enforce_move_limit=True)
 
         if winner == cur_model:
             cur_model_wincount += 1
