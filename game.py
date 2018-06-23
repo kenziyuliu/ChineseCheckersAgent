@@ -55,10 +55,11 @@ class Game:
         self.cur_player, self.next_player = self.next_player, self.cur_player
 
 
-    def start(self):
+    def start(self, enforce_move_limit=False):
         np.random.seed()
         total_moves = 0
         history_dests = deque()
+        num_moves = 0
         while True:
             move_from, move_to = self.cur_player.decide_move(self.board, verbose=self.verbose, total_moves=total_moves)    # Get move from player
             winner = self.board.place(self.cur_player.player_num, move_from, move_to)  # Make the move on board and check winner
@@ -77,6 +78,13 @@ class Game:
             cur_player_hist_dest = set([history_dests[i] for i in range(len(history_dests) - 1, -1, -2)])
             if len(history_dests) == TOTAL_HIST_MOVES and len(cur_player_hist_dest) <= UNIQUE_DEST_LIMIT:
                 print('Repetition detected: stopping game')
+                winner = None
+                break
+
+            num_moves += 1
+
+            if enforce_move_limit and num_moves >= PROGRESS_MOVE_LIMIT:
+                print('Game stopped by reaching progress move limit; Game Discarded')
                 winner = None
                 break
 
