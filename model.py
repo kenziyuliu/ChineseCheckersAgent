@@ -4,7 +4,7 @@ from keras import regularizers
 from keras.optimizers import SGD, Adam
 from keras.models import load_model
 from keras.models import Model as KerasModel
-from keras.layers import Input, Conv2D, Flatten, Dense, BatchNormalization, LeakyReLU, add
+from keras.layers import Input, Conv2D, Flatten, Dense, BatchNormalization, LeakyReLU, Activation, add
 
 import utils
 from board import *
@@ -59,107 +59,148 @@ class ResidualCNN(Model):
         main_input = Input(shape=self.input_dim)
         regularizer = regularizers.l2(REG_CONST)
 
-        x = self.conv_block(main_input, self.filters, 3, regularizer)
+        x = Conv2D(filters=64, kernel_size=3, kernel_regularizer=regularizer, padding='valid')(main_input)
+        x = BatchNormalization()(x)
+        x = Activation('relu')(x)
 
-        for _ in range(NUM_RESIDUAL_BLOCKS):
-            x = self.residual_block(x, self.filters, 3, regularizer)
+        x = self.residual_block(x, [32, 32, 64], kernel_size=3, regularizer=regularizer)
+        x = self.residual_block(x, [32, 32, 64], kernel_size=3, regularizer=regularizer)
+        x = self.residual_block(x, [32, 32, 64], kernel_size=3, regularizer=regularizer)
 
-        value = self.value_head(x, regularizer)
+        x = self.residual_block(x, [32, 32, 64], kernel_size=3, regularizer=regularizer)
+        x = self.residual_block(x, [32, 32, 64], kernel_size=3, regularizer=regularizer)
+        x = self.residual_block(x, [32, 32, 64], kernel_size=3, regularizer=regularizer)
+
+        x = self.residual_block(x, [32, 32, 64], kernel_size=3, regularizer=regularizer)
+        x = self.residual_block(x, [32, 32, 64], kernel_size=3, regularizer=regularizer)
+        x = self.residual_block(x, [32, 32, 64], kernel_size=3, regularizer=regularizer)
+
         policy = self.policy_head(x, regularizer)
+        value = self.value_head(x, regularizer)
 
         model = KerasModel(inputs=[main_input], outputs=[policy, value])
-        model.compile(loss={"policy_head":softmax_cross_entropy_with_logits, "value_head":"mean_squared_error"},
-                        # optimizer=Adam(lr=LEARNING_RATE),
-                        optimizer=SGD(lr=LEARNING_RATE, momentum=0.9, nesterov=True),
-                        loss_weights=LOSS_WEIGHTS)
+        model.compile(loss={'policy_head':softmax_cross_entropy_with_logits, 'value_head':'mean_squared_error'}
+                    # , optimizer=SGD(lr=LEARNING_RATE, momentum=0.9, nesterov=True) NOTE: keep here for reuse
+                    , optimizer=Adam(lr=LEARNING_RATE)
+                    , loss_weights=LOSS_WEIGHTS)
+
         return model
 
 
-    def conv_layer(self, layer_input, filters, kernel_size, regularizer):
-        return Conv2D(filters=filters,
-                        kernel_size=kernel_size,
-                        padding="same",
-                        use_bias=False,
-                        activation="linear",
-                        kernel_regularizer=regularizer)(layer_input)
-
-
-    def residual_block(self, block_input, filters, kernel_size, regularizer):
-        x = self.conv_layer(block_input, filters, kernel_size, regularizer)
-        x = BatchNormalization()(x)
-        x = LeakyReLU()(x)
-        x = self.conv_layer(x, filters, kernel_size, regularizer)
-        x = BatchNormalization()(x)
-        x = add([block_input, x])
-        x = LeakyReLU()(x)
-        return x
-
-
-    def conv_block(self, block_input, filters, kernel_size, regularizer):
-        x = self.conv_layer(block_input, filters, kernel_size, regularizer)
-        x = BatchNormalization()(x)
-        x = LeakyReLU()(x)
-        return x
-
-
     def value_head(self, head_input, regularizer):
-        x = self.conv_layer(head_input, filters=1, kernel_size=1, regularizer=regularizer)
+        x = Conv2D(filters=1, kernel_size=1, kernel_regularizer=regularizer)(head_input)
         x = BatchNormalization()(x)
-        x = LeakyReLU()(x)
+        x = Activation('relu')(x)
         x = Flatten()(x)
-        x = Dense(self.filters,
-                use_bias=False,
-                activation="linear",
+        x = Dense(32,
+                use_bias=True,
+                activation='relu',
                 kernel_regularizer=regularizer)(x)
-        x = BatchNormalization()(x)
-        x = LeakyReLU()(x)
         x = Dense(1,
-                use_bias=False,
-                activation="tanh",
+                use_bias=True,
+                activation='tanh',
                 kernel_regularizer=regularizer,
-                name="value_head")(x)
+                name='value_head')(x)
         return x
 
 
     def policy_head(self, head_input, regularizer):
-        x = self.conv_layer(head_input, filters=16, kernel_size=1, regularizer=regularizer)
+        x = Conv2D(filters=16, kernel_size=1, kernel_regularizer=regularizer)(head_input)
         x = BatchNormalization()(x)
-        x = LeakyReLU()(x)
+        x = Activation('relu')(x)
         x = Flatten()(x)
         x = Dense(NUM_CHECKERS * BOARD_WIDTH * BOARD_WIDTH,
-                use_bias=False,
+                use_bias=True,
                 activation='linear',
                 kernel_regularizer=regularizer,
-                name="policy_head")(x)
+                name='policy_head')(x)
+        return x
+
+
+    def residual_block(self, block_input, filters, kernel_size, regularizer):
+        '''
+        Residual block setup code referenced from Keras
+        https://github.com/keras-team/keras
+        '''
+        x = Conv2D(filters=filters[0]
+                 , kernel_size=1
+                 , kernel_regularizer=regularizer)(block_input)
+        x = BatchNormalization()(x)
+        x = Activation('relu')(x)
+
+        x = Conv2D(filters=filters[1]
+                 , kernel_size=kernel_size
+                 , padding='same'
+                 , kernel_regularizer=regularizer)(x)
+        x = BatchNormalization()(x)
+        x = Activation('relu')(x)
+
+        x = Conv2D(filters=filters[2]
+                 , kernel_size=1
+                 , kernel_regularizer=regularizer)(x)
+        x = BatchNormalization()(x)
+
+        x = add([x, block_input])
+        x = Activation('relu')(x)
+        return x
+
+
+    def conv_block(self, block_input, filters, kernel_size, regularizer):
+        '''
+        Conv block setup code referenced from Keras
+        https://github.com/keras-team/keras
+        '''
+        x = Conv2D(filters=filters[0]
+                 , kernel_size=1
+                 , kernel_regularizer=regularizer)(block_input)
+        x = BatchNormalization()(x)
+        x = Activation('relu')(x)
+
+        x = Conv2D(filters=filters[1]
+                 , kernel_size=kernel_size
+                 , padding='same'
+                 , kernel_regularizer=regularizer)(x)
+        x = BatchNormalization()(x)
+        x = Activation('relu')(x)
+
+        x = Conv2D(filters=filters[2]
+                 , kernel_size=1
+                 , kernel_regularizer=regularizer)(x)
+        x = BatchNormalization()(x)
+
+        shortcut = Conv2D(filters=filters[2]
+                        , kernel_size=1
+                        , kernel_regularizer=regularizer)(block_input)
+        shortcut = BatchNormalization()(shortcut)
+
+        x = add([x, shortcut])
+        x = Activation('relu')(x)
         return x
 
 
 if __name__ == '__main__':
-    """
-    Test cases here
-    """
-    checker_pos = []
-    for i in range(6 * 49 + 1):
-        checker_pos.append(utils.decode_checker_index(i))
-        # print(utils.decode_checker_index(i))
-
-    count = 0
-    for checker_id, pos in checker_pos:
-        assert count == utils.encode_checker_index(checker_id, pos)
-        # print(utils.encode_checker_index(checker_id, pos))
-        count += 1
-
-    # Test `to_model_input`
-    gameboard = Board()
-    gameboard.place(1, (5, 0), (3, 0))
-    board = gameboard.board
-    for i in range(board.shape[2]):
-        print(board[:, :, i])
-    model_input = utils.to_model_input(board, 1)
-    print('\n\n')
-    for i in range(model_input.shape[2]):
-        print(model_input[:, :, i])
+    # checker_pos = []
+    # for i in range(6 * 49 + 1):
+    #     checker_pos.append(utils.decode_checker_index(i))
+    #     # print(utils.decode_checker_index(i))
+    #
+    # count = 0
+    # for checker_id, pos in checker_pos:
+    #     assert count == utils.encode_checker_index(checker_id, pos)
+    #     # print(utils.encode_checker_index(checker_id, pos))
+    #     count += 1
+    #
+    # # Test `to_model_input`
+    # gameboard = Board()
+    # gameboard.place(1, (5, 0), (3, 0))
+    # board = gameboard.board
+    # for i in range(board.shape[2]):
+    #     print(board[:, :, i])
+    # model_input = utils.to_model_input(board, 1)
+    # print('\n\n')
+    # for i in range(model_input.shape[2]):
+    #     print(model_input[:, :, i])
 
     model = ResidualCNN()
     # test for saving
-    model.save(SAVE_MODELS_DIR, None, 1)
+    model.model.summary()

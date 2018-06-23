@@ -60,7 +60,7 @@ if __name__ == '__main__':
     if len(sys.argv) == 3:
         agent_match(sys.argv[1], sys.argv[2], 1, True)
     else:
-        tree_tau = int(sys.argv[3])
+        tree_tau = float(sys.argv[3])
         utils.stress_message('Using tree_tau {} initially'.format(tree_tau))
         agent_match(sys.argv[1], sys.argv[2], 1, True, tree_tau)
 

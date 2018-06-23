@@ -29,10 +29,6 @@ BEST_MODEL = None
 
 
 def generate_self_play(worker_id, model_path, num_self_play, model2_path=None):
-    # Re-seed the generators: since the RNG was copied from parent process
-    np.random.seed()        # None seed to source from /dev/urandom
-    random.seed()
-
     # Load the current model in the worker only for prediction and set GPU limit
     import tensorflow as tf
     tf_config = tf.ConfigProto()
@@ -41,6 +37,10 @@ def generate_self_play(worker_id, model_path, num_self_play, model2_path=None):
 
     from keras.backend.tensorflow_backend import set_session
     set_session(session=session)
+
+    # Re-seed the generators: since the RNG was copied from parent process
+    np.random.seed()        # None seed to source from /dev/urandom
+    random.seed()
 
     # Decide what model to use
     model = ResidualCNN()
@@ -120,11 +120,13 @@ def train(model_path, board_x, pi_y, v_y, data_retention, version):
     from keras.backend.tensorflow_backend import set_session
     set_session(session=session)
 
+    np.random.seed()
+    random.seed()
+
     message = 'At {}, Training Version {}, Number of examples: {} (retaining {:.1f}%)' \
         .format(utils.cur_time(), version, len(board_x), data_retention * 100)
 
     utils.stress_message(message, True)
-
 
     # Make sure path is not null if we are not training from scratch
     cur_model = ResidualCNN()
@@ -149,10 +151,6 @@ def train(model_path, board_x, pi_y, v_y, data_retention, version):
 
 
 def evaluate(worker_id, best_model, cur_model, num_games):
-    # Re-seed the generators: since the RNG was copied from parent process
-    np.random.seed()        # None seed to source from /dev/urandom
-    random.seed()
-
     # Load the current model in the worker only for prediction and set GPU limit
     import tensorflow as tf
     tf_config = tf.ConfigProto()
@@ -161,6 +159,10 @@ def evaluate(worker_id, best_model, cur_model, num_games):
 
     from keras.backend.tensorflow_backend import set_session
     set_session(session=session)
+
+    # Re-seed the generators: since the RNG was copied from parent process
+    np.random.seed()        # None seed to source from /dev/urandom
+    random.seed()
 
     from ai_vs_ai import agent_match
 

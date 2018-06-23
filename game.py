@@ -26,7 +26,7 @@ class Game:
         elif p2_type == 'g':
             self.player_two = GreedyPlayer(player_num=2)
         else:
-            self.player_two = AiPlayer(player_num=2, model=model2, tree_tau=tree_tau)
+            self.player_two = AiPlayer(player_num=2, model=(model1 if model2 is None else model2), tree_tau=tree_tau)
 
         self.cur_player = self.player_one
         self.next_player = self.player_two

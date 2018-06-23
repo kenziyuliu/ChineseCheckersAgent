@@ -31,15 +31,15 @@ REWARD = {'lose' : -1, 'draw' : 0, 'win' : 1}
 REWARD_FACTOR = 10                          # Scale the reward if necessary
 TREE_TAU = 1
 DET_TREE_TAU = 0.01
-C_PUCT = 3
+C_PUCT = 3.5
 MCTS_SIMULATIONS = 150
 EPSILON = 1e-5
-TOTAL_MOVES_TILL_TAU0 = 6
+TOTAL_MOVES_TILL_TAU0 = 16
 DIST_THRES_FOR_REWARD = 2                   # Threshold for reward for player forward distance difference
-EVAL_GAMES = 48
+EVAL_GAMES = 24
 
 ''' Loss Weights depending on training '''
-LOSS_WEIGHTS = {'policy_head': 1., 'value_head': 0.01}
+LOSS_WEIGHTS = { 'policy_head': 1., 'value_head': 1. }
 
 ''' Train '''
 SAVE_MODELS_DIR = 'saved-models/'
@@ -50,21 +50,24 @@ SAVE_TRAIN_DATA_PREF = 'data-for-iter-'
 PAST_ITER_COUNT = 1                         # Number of past iterations to use
 DEF_DATA_RETENTION_RATE = 0.5               # Default percentage of training data to keep when sampling
 BATCH_SIZE = 32
-REG_CONST = 1e-4                            # Weight decay constant (l1/l2 regularizer)
-LEARNING_RATE = 0.01                       # Traning learning rate
-EPOCHS = 24                                 # Training Epochs
-NUM_SELF_PLAY = 72                          # Total number of self plays to generate
+REG_CONST = 6e-3                            # Weight decay constant (l1/l2 regularizer)
+LEARNING_RATE = 0.0001                       # Traning learning rate
+EPOCHS = 5                                 # Training Epochs
+NUM_SELF_PLAY = 120                          # Total number of self plays to generate
 NUM_WORKERS = 12                            # For generating self plays in parallel
 SELF_PLAY_DIFF_MODEL = False
 
 ''' Greedy-Supervised Training '''
-G_NUM_GAMES = 60000
-G_DATA_RETENTION_RATE = 0.2
-G_NORMAL_GAME_RATIO = 0.1
+# G_NUM_GAMES = 60000
+G_AVG_GAME_LEN = 21
+G_DATA_RETENTION_RATE = 1. / G_AVG_GAME_LEN
+G_EPOCHS = 100
+G_GAMES_PER_EPOCH = 15000
+G_VAL_SPLIT = 0.1
+G_NORMAL_GAME_RATIO = 0.01
 G_MODEL_PREFIX = 'greedy-model'
-G_EPOCHS = 30
 G_BATCH_SIZE = 32
-G_NUM_VAL_DATA = 3000
+# G_NUM_VAL_DATA = 3000
 
 ''' Greedy Data Generator '''
 THRESHOLD_FOR_RANDOMIZATION = 2
