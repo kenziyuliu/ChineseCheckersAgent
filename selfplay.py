@@ -1,5 +1,6 @@
 import copy
 import numpy as np
+import random
 
 import utils
 from config import *
@@ -28,8 +29,13 @@ def selfplay(model1, model2=None, randomised=False):
     while True:
         model = model1 if use_model1 else model2
 
-        # Use Current model to make a move
-        root = make_move(root, model, tree_tau, play_history)
+        num_moves = len(root.state.hist_moves)
+        if num_moves < INITIAL_RANDOM_MOVES:
+            root = make_random_move(root)
+        else:
+            # Use Current model to make a move
+            root = make_move(root, model, tree_tau, play_history)
+
         assert root.isLeaf()
 
         hist_moves = root.state.hist_moves
@@ -54,7 +60,7 @@ def selfplay(model1, model2=None, randomised=False):
         use_model1 = not use_model1
 
         # Change TREE_TAU to very small if game has certain progress so actions are deterministic
-        if len(play_history) > TOTAL_MOVES_TILL_TAU0:
+        if len(play_history) + INITIAL_RANDOM_MOVES > TOTAL_MOVES_TILL_TAU0:
             if tree_tau == TREE_TAU:
                 print('selfplay: Changing tree_tau to {} as total number of moves is now {}'.format(DET_TREE_TAU, len(play_history)))
             tree_tau = DET_TREE_TAU
@@ -74,6 +80,29 @@ def selfplay(model1, model2=None, randomised=False):
     else:
         return play_history, utils.get_p1_winloss_reward(root.state)
 
+
+def make_random_move(root):
+    '''
+    Independent on MCTS.
+    Instead sample a random move from current board's valid moves.
+    '''
+    random.seed()
+
+    cur_state = root.state
+    player = root.currPlayer
+
+    valid_actions = cur_state.get_valid_moves(player) # dict, key: checker pos, value: possible dest from pos
+
+    random_start = random.choice(list(valid_actions.keys()))
+    while len(valid_actions[random_start]) == 0:
+        random_start = random.choice(list(valid_actions.keys()))
+    random_end = random.choice(valid_actions[random_start])
+
+    next_state = copy.deepcopy(cur_state)
+    next_state.place(player, random_start, random_end)
+    new_player = PLAYER_ONE + PLAYER_TWO - player
+
+    return Node(next_state, new_player)
 
 
 def make_move(root, model, tree_tau, play_history):

@@ -35,6 +35,7 @@ C_PUCT = 3.5
 MCTS_SIMULATIONS = 150
 EPSILON = 1e-5
 TOTAL_MOVES_TILL_TAU0 = 16
+INITIAL_RANDOM_MOVES = 6
 DIST_THRES_FOR_REWARD = 2                   # Threshold for reward for player forward distance difference
 EVAL_GAMES = 24
 
