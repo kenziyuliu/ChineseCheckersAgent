@@ -77,15 +77,13 @@ STUCK_TIME_LIMIT = 0.1
 """
 NOTE:
 When training in greedy:
-    - use lower regulurisation (6e-5)
-    - 0.01 weight on value head
-    - Less epoch (~25)
-    - 12 workers
+    - use lower regulurisation (1e-4)
+    - 1 weight on value head
 
 When training in RL:
-    - higher REG (1e-4) OR stay the same (6e-5)
+    - higher REG (6e-3)
     - 1. weight on both value and policy head
-    - ~25 Epoch
+    - ~5 Epoch
     - 12 Workers
     - ~144 MCTS Simulations
     - TREE_TAU = 1

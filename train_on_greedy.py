@@ -71,10 +71,9 @@ def generate_self_play_in_parallel(num_self_play, num_workers):
 
 
 
-def train(num_games):
+def train(num_games, model, version):
     # print some useful message
-    cur_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    message = 'At {}, Starting to generate {} greedy self-play games'.format(utils.cur_time(), num_games)
+    message = 'At {}, Starting to generate {} greedy self-play games for version {}'.format(utils.cur_time(), num_games, version)
     utils.stress_message(message, True)
 
     # Generate games
@@ -91,49 +90,54 @@ def train(num_games):
 
     # Sample a portion of training data
     num_train_data = int(G_DATA_RETENTION_RATE * len(board_x))
-    if num_train_data + G_NUM_VAL_DATA > len(board_x):
-        raise ValueError('\nTraining + Validation data exceeds available data\n')
 
-    sampled_idx = np.random.choice(len(board_x), num_train_data + G_NUM_VAL_DATA, replace=False)
+    # if num_train_data + G_NUM_VAL_DATA > len(board_x):
+    #     raise ValueError('\nTraining + Validation data exceeds available data\n')
+
+    sampled_idx = np.random.choice(len(board_x), num_train_data, replace=False)
     board_x_train = np.array([board_x[sampled_idx[i]] for i in range(num_train_data)])
-    board_x_val = np.array([board_x[sampled_idx[i]] for i in range(num_train_data, num_train_data + G_NUM_VAL_DATA)])
-
     pi_y_train = np.array([pi_y[sampled_idx[i]] for i in range(num_train_data)])
-    pi_y_val = np.array([pi_y[sampled_idx[i]] for i in range(num_train_data, num_train_data + G_NUM_VAL_DATA)])
-
     v_y_train = np.array([v_y[sampled_idx[i]] for i in range(num_train_data)])
-    v_y_val = np.array([v_y[sampled_idx[i]] for i in range(num_train_data, num_train_data + G_NUM_VAL_DATA)])
 
-    del board_x
-    del pi_y
-    del v_y
-    gc.collect()
+    # board_x_val = np.array([board_x[sampled_idx[i]] for i in range(num_train_data, num_train_data + G_NUM_VAL_DATA)])
+    # pi_y_val = np.array([pi_y[sampled_idx[i]] for i in range(num_train_data, num_train_data + G_NUM_VAL_DATA)])
+    # v_y_val = np.array([v_y[sampled_idx[i]] for i in range(num_train_data, num_train_data + G_NUM_VAL_DATA)])
 
     assert len(board_x_train) == len(pi_y_train) == len(v_y_train)
-    assert len(board_x_val) == len(pi_y_val) == len(v_y_val)
+    # assert len(board_x_val) == len(pi_y_val) == len(v_y_val)
     print('Number of training examples (Sampled): {}\n'.format(len(board_x_train)))
-
-    print('Initialising Model...')
-    new_model = ResidualCNN()
-    print('Model Initialised')
 
     # Make sure that the directory is available
     if not os.path.exists(SAVE_WEIGHTS_DIR):
         os.makedirs(SAVE_WEIGHTS_DIR)
 
-    new_model.model.fit(board_x_train, [pi_y_train, v_y_train],
-        validation_data=((board_x_val, [pi_y_val, v_y_val]) if G_NUM_VAL_DATA > 0 else None),
+    model.model.fit(board_x_train, [pi_y_train, v_y_train],
+        # validation_data=((board_x_val, [pi_y_val, v_y_val]) if G_NUM_VAL_DATA > 0 else None),
+        validation_split=G_VAL_SPLIT,
         batch_size=G_BATCH_SIZE,
-        epochs=G_EPOCHS,
-        shuffle=True,
-        callbacks=[EarlyStopping(monitor='val_loss', min_delta=0.001, patience=5),
-                   ModelCheckpoint(filepath=SAVE_WEIGHTS_DIR+'Weights-ep{epoch:02d}-val{val_loss:.2f}.h5',
-                                   save_best_only=True, save_weights_only=True)])
+        epochs=2,
+        shuffle=True)
+        # callbacks=[EarlyStopping(monitor='val_loss', min_delta=0.001, patience=5),
+        #            ModelCheckpoint(filepath=SAVE_WEIGHTS_DIR+'GreedyWeights-ep{epoch:02d}-val{val_loss:.2f}.h5',
+        #                            save_best_only=True, save_weights_only=True)])
 
-    new_model.save_weights(SAVE_WEIGHTS_DIR, G_MODEL_PREFIX, version=0)      # Version doesn't matter
-    utils.stress_message('GreedyModel Weights saved to {}'.format(SAVE_WEIGHTS_DIR), True)
+    model.save_weights(SAVE_WEIGHTS_DIR, G_MODEL_PREFIX, version=version)
+    utils.stress_message('GreedyModel Weights version {} saved to {}'.format(version, SAVE_WEIGHTS_DIR), True)
 
 
 
 if __name__ == '__main__':
-    train(G_NUM_GAMES)
+    print('Initialising Model...')
+    model = ResidualCNN()
+    print('Model Initialised')
+
+    version = 0
+    if len(sys.argv) == 2:
+        checkpoint = sys.argv[1]
+        print('Continue training from version "{}"'.format(checkpoint))
+        model.load_weights(checkpoint)
+        version = utils.find_version_given_filename(checkpoint) + 1
+        print('\nCurrent training version {}'.format(version))
+
+    for i in range(G_EPOCHS):
+        train(G_GAMES_PER_EPOCH, model, i + version)
