@@ -4,6 +4,7 @@ import sys
 import h5py
 import datetime
 import threading
+import argparse
 import multiprocessing as mp
 
 import utils
@@ -21,11 +22,6 @@ This file coordinates training procedure, including:
 4. save model checkpoints for each 'x' self play
 5. allow loading saved model checkpoints given argument
 """
-
-# Count the number of training iterations done; used for naming models
-ITERATION_COUNT = 0
-# Best Model for generating selfplays
-BEST_MODEL = None
 
 
 def generate_self_play(worker_id, model_path, num_self_play, model2_path=None):
@@ -235,22 +231,23 @@ def evaluate_in_parallel(best_model, cur_model, num_games, num_workers):
 
 
 
-def evolve(cur_model_path):
-    global ITERATION_COUNT
-    global BEST_MODEL
+def evolve(cur_model_path, other_opponent_for_selfplay, iteration_count, best_model):
 
     while True:
         # print some useful message
-        message = 'At {}, Starting to generate self-plays for Version {}'.format(utils.cur_time(), ITERATION_COUNT)
+        message = 'At {}, Starting to generate self-plays for Version {}'.format(utils.cur_time(), iteration_count)
         utils.stress_message(message, True)
 
         ##########################
         ##### GENERATE PLAYS #####
         ##########################
 
-        if BEST_MODEL is not None:
-            print('(Generating games using given best model: {})'.format(BEST_MODEL))
-            games = generate_self_play_in_parallel(BEST_MODEL, NUM_SELF_PLAY, NUM_WORKERS)
+        if other_opponent_for_selfplay is not None:
+            print('(Generating games using current model {} and other model {})'.format(cur_model_path, other_opponent_for_selfplay))
+            games = generate_self_play_in_parallel(cur_model_path, NUM_SELF_PLAY, NUM_WORKERS, model2_path=other_opponent_for_selfplay)
+        elif best_model is not None:
+            print('(Generating games using given best model: {})'.format(best_model))
+            games = generate_self_play_in_parallel(best_model, NUM_SELF_PLAY, NUM_WORKERS)
         else:
             # # Use previous version to generate selfplay if necessary
             # model2_path = None
@@ -274,15 +271,15 @@ def evolve(cur_model_path):
         # Numpyify and save for later iterations
         board_x, pi_y, v_y = np.array(board_x), np.array(pi_y), np.array(v_y)
         if len(board_x) > 0 and len(pi_y) > 0 and len(v_y) > 0:
-            utils.save_train_data(board_x, pi_y, v_y, version=ITERATION_COUNT)
+            utils.save_train_data(board_x, pi_y, v_y, version=iteration_count)
 
         # Get prev iters training data
-        board_x, pi_y, v_y, data_iters_used = combine_prev_iters_train_data(board_x, pi_y, v_y)
+        board_x, pi_y, v_y, data_iters_used = combine_prev_iters_train_data(board_x, pi_y, v_y, iteration_count)
         assert len(board_x) == len(pi_y) == len(v_y)
 
         # Train only if there were data
         if data_iters_used == 0:
-            utils.stress_message('No training data for iteration {}! Re-iterating...'.format(ITERATION_COUNT))
+            utils.stress_message('No training data for iteration {}! Re-iterating...'.format(iteration_count))
             continue
 
         # Calculate training set retention rate including current iteration; use default if too high
@@ -295,32 +292,32 @@ def evolve(cur_model_path):
         # Use a *new process* to train since we DONT want to load TF in the parent process
         training_process = mp.Process(
             target=train,
-            args=(cur_model_path, board_x, pi_y, v_y, data_retention_rate, ITERATION_COUNT))
+            args=(cur_model_path, board_x, pi_y, v_y, data_retention_rate, iteration_count))
         training_process.start()
         training_process.join()
 
         # Update path variable since we made a new version
         # cur_model_path = get_model_path_from_version(ITERATION_COUNT)
-        cur_model_path = get_weights_path_from_version(ITERATION_COUNT)
+        cur_model_path = get_weights_path_from_version(iteration_count)
 
         ####################
         ##### EVALUATE #####
         ####################
 
-        if BEST_MODEL is not None:
-            cur_model_wincount = evaluate_in_parallel(BEST_MODEL, cur_model_path, EVAL_GAMES, NUM_WORKERS)
+        if best_model is not None:
+            cur_model_wincount = evaluate_in_parallel(best_model, cur_model_path, EVAL_GAMES, NUM_WORKERS)
             if cur_model_wincount > int(0.55 * EVAL_GAMES):
-                BEST_MODEL = cur_model_path
-                utils.stress_message('Now using {} as the best model'.format(BEST_MODEL))
+                best_model = cur_model_path
+                utils.stress_message('Now using {} as the best model'.format(best_model))
             else:
-                utils.stress_message('Output model of this iteration is not better; retaining {} as the best model'.format(BEST_MODEL), True)
+                utils.stress_message('Output model of this iteration is not better; retaining {} as the best model'.format(best_model), True)
 
         # Update version number
-        ITERATION_COUNT += 1
+        iteration_count += 1
 
 
 
-def combine_prev_iters_train_data(board_x, pi_y, v_y):
+def combine_prev_iters_train_data(board_x, pi_y, v_y, iteration_count):
     all_board_x, all_pi_y, all_v_y = [], [], []
 
     if len(board_x) > 0 and len(pi_y) > 0 and len(v_y) > 0:
@@ -329,7 +326,7 @@ def combine_prev_iters_train_data(board_x, pi_y, v_y):
         all_v_y.append(v_y)
 
     # Read data from previous iterations
-    for i in range(ITERATION_COUNT - PAST_ITER_COUNT, ITERATION_COUNT):
+    for i in range(iteration_count - PAST_ITER_COUNT, iteration_count):
         if i >= 0:
             filename = '{}/{}{}.h5'.format(SAVE_TRAIN_DATA_DIR, SAVE_TRAIN_DATA_PREF, i)
 
@@ -367,20 +364,36 @@ def get_rand_prev_version(upper):
     return np.random.randint(upper // 2, upper)
 
 
+def build_parser():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--cur_model_path', '-c',
+                    dest='model_path',
+                    help='current model_path of model to optimize on (newest model)')
+    parser.add_argument('--best_model_path', '-b',
+                    dest='best_model_path',
+                    help='best model')
+    parser.add_argument('--other_opponent_for_selfplay', '-p',
+                    dest='other_opponent_for_selfplay',
+                    help='boolean to specify selfplay generated by both current model and best model or not, \
+                    if not generate with only best model')
+    return parser
+
 
 if __name__ == '__main__':
-    model_path = None
-    if len(sys.argv) > 1:
-        model_path = sys.argv[1]
-        try:
-            # Read the count from file name
-            ITERATION_COUNT = utils.find_version_given_filename(model_path) + 1
-        except:
-            ITERATION_COUNT = 0
+    parser = build_parser()
+    args = parser.parse_args()
 
-        if len(sys.argv) > 2:
-            BEST_MODEL = sys.argv[2]
-            print('\nUsing {} as the best model for generating selfplays\n'.format(BEST_MODEL))
+    model_path = args.model_path
 
-    utils.stress_message('Start to training from version: {}'.format(ITERATION_COUNT), True)
-    evolve(model_path)
+    try:
+        # Read the count from file name
+        iteration_count = utils.find_version_given_filename(model_path) + 1
+    except:
+        iteration_count = 0
+
+    best_model = args.best_model_path
+    if best_model is not None:
+        print('\nBest model {} specified!\n'.format(best_model))
+
+    utils.stress_message('Start to training from version: {}'.format(iteration_count), True)
+    evolve(model_path, args.other_opponent_for_selfplay, iteration_count, best_model)
