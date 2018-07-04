@@ -1,4 +1,5 @@
 import utils
+import numpy as np
 from game import Game
 from config import *
 
@@ -9,7 +10,7 @@ want to play human-vs-greedy game
 
 if __name__ == '__main__':
     count = { PLAYER_ONE : 0, PLAYER_TWO : 0 }
-    num_games = 10
+    num_games = 50
     end_states = []
     for i in range(num_games):
         utils.stress_message('Game {}'.format(i + 1))

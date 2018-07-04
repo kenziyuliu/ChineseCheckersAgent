@@ -12,10 +12,11 @@ from model import Model
 
 
 class GreedyDataGenerator:
-    def __init__(self, randomised=False):
+    def __init__(self, randomised=False, random_start=False):
         self.cur_player = GreedyPlayer(player_num=1)
         self.next_player = GreedyPlayer(player_num=2)
         self.randomised = randomised
+        self.random_start = random_start
         self.board = Board(randomised=randomised)
 
     def swap_players(self):
@@ -25,6 +26,18 @@ class GreedyDataGenerator:
         play_history = []
         final_winner = None
         start_time = datetime.now()
+
+        # Make some random moves if random start is specified
+        if self.random_start:
+            for i in range(INITIAL_RANDOM_MOVES):
+                valid_actions = self.board.get_valid_moves(self.cur_player.player_num)
+                random_start = random.choice(list(valid_actions.keys()))
+                while len(valid_actions[random_start]) == 0:
+                    random_start = random.choice(list(valid_actions.keys()))
+                random_end = random.choice(valid_actions[random_start])
+                # No need to check winner: game is just starting
+                self.board.place(self.cur_player.player_num, random_start, random_end)
+                self.swap_players()
 
         while True:
             best_moves = self.cur_player.decide_move(self.board, verbose=False, training=True)
@@ -69,11 +82,15 @@ class GreedyDataGenerator:
 
 
 if __name__ == "__main__":
-    sum = 0
-    for i in range(200):
-        generator = GreedyDataGenerator(randomised=True)
-        history, reward = generator.generate_play()
-        sum += len(history)
+    lens = []
+    num_games = 5000
+    randomGen = GreedyDataGenerator(randomised=True)
+    normalGen = GreedyDataGenerator(randomised=False)
+    for i in range(num_games):
+        history, reward = randomGen.generate_play()
+        lens.append(len(history))
+        history, reward = normalGen.generate_play()
+        lens.append(len(history))
 
         # history[0][0].visualise()
         # print(history[0][1])
@@ -93,4 +110,11 @@ if __name__ == "__main__":
         # time.sleep(500)
 
         # print(len(generator.generate_play()[0]))
-    print('Average game length:', sum / 200)
+    print('Average game length over {} games:'.format(len(lens)), sum(lens) / len(lens))
+
+    # print('Trying random start')
+    # gen = GreedyDataGenerator(random_start=True)
+    # history, reward = gen.generate_play()
+    # history[0][0].visualise()
+    # history[1][0].visualise()
+    # history[2][0].visualise()

@@ -21,25 +21,24 @@ def generate_self_play(worker_id, num_self_play):
     # Worker start generating self plays according to their workload
     worker_result = []
     num_normal_games = int(G_NORMAL_GAME_RATIO * num_self_play)
-    num_randomised_games = num_self_play - num_normal_games
+    num_rand_start_games = int(G_RAND_START_GAME_RATIO * num_self_play)
+    num_randomised_games = num_self_play - num_normal_games - num_rand_start_games
 
+    normal_gen = GreedyDataGenerator()
+    random_start_gen = GreedyDataGenerator(random_start=True)
     randomised_gen = GreedyDataGenerator(randomised=True)
-    normal_gen = GreedyDataGenerator(randomised=False)
 
-    for i in range(num_randomised_games):
-        worker_result.append(randomised_gen.generate_play())
-        if len(worker_result) % 100 == 0:
-            print('Worker {}: generated {} self-plays'.format(worker_id, len(worker_result)))
+    def generate(num_games, gen):
+        for i in range(num_games):
+            worker_result.append(gen.generate_play())
+            if len(worker_result) % 100 == 0:
+                print('Worker {}: generated {} self-plays'.format(worker_id, len(worker_result)))
 
-    for i in range(num_normal_games):
-        worker_result.append(normal_gen.generate_play())
-        if len(worker_result) % 100 == 0:
-            print('Worker {}: generated {} self-plays'.format(worker_id, len(worker_result)))
+    generate(num_normal_games, normal_gen)
+    generate(num_rand_start_games, random_start_gen)
+    generate(num_randomised_games, randomised_gen)
 
-    import random
-    random.shuffle(worker_result)
     print('Worker {}: generated {} self-plays'.format(worker_id, len(worker_result)))
-
     return worker_result
 
 
@@ -91,9 +90,6 @@ def train(num_games, model, version):
     # Sample a portion of training data
     num_train_data = int(G_DATA_RETENTION_RATE * len(board_x))
 
-    # if num_train_data + G_NUM_VAL_DATA > len(board_x):
-    #     raise ValueError('\nTraining + Validation data exceeds available data\n')
-
     sampled_idx = np.random.choice(len(board_x), num_train_data, replace=False)
     board_x_train = np.array([board_x[sampled_idx[i]] for i in range(num_train_data)])
     pi_y_train = np.array([pi_y[sampled_idx[i]] for i in range(num_train_data)])
@@ -104,7 +100,6 @@ def train(num_games, model, version):
     # v_y_val = np.array([v_y[sampled_idx[i]] for i in range(num_train_data, num_train_data + G_NUM_VAL_DATA)])
 
     assert len(board_x_train) == len(pi_y_train) == len(v_y_train)
-    # assert len(board_x_val) == len(pi_y_val) == len(v_y_val)
     print('Number of training examples (Sampled): {}\n'.format(len(board_x_train)))
 
     # Make sure that the directory is available
@@ -115,7 +110,7 @@ def train(num_games, model, version):
         # validation_data=((board_x_val, [pi_y_val, v_y_val]) if G_NUM_VAL_DATA > 0 else None),
         validation_split=G_VAL_SPLIT,
         batch_size=G_BATCH_SIZE,
-        epochs=2,
+        epochs=G_ITER_PER_EPOCH,
         shuffle=True)
         # callbacks=[EarlyStopping(monitor='val_loss', min_delta=0.001, patience=5),
         #            ModelCheckpoint(filepath=SAVE_WEIGHTS_DIR+'GreedyWeights-ep{epoch:02d}-val{val_loss:.2f}.h5',

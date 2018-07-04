@@ -138,6 +138,7 @@ def train(model_path, board_x, pi_y, v_y, data_retention, version):
 
     cur_model.model.fit(sampled_board_x, [sampled_pi_y, sampled_v_y],
         batch_size=BATCH_SIZE,
+        validation_split=0.05,
         epochs=EPOCHS,
         shuffle=True)
 
@@ -382,8 +383,9 @@ def build_parser():
 if __name__ == '__main__':
     parser = build_parser()
     args = parser.parse_args()
-
     model_path = args.model_path
+    best_model = args.best_model_path
+    other_opponent_for_selfplay = args.other_opponent_for_selfplay
 
     try:
         # Read the count from file name
@@ -391,9 +393,10 @@ if __name__ == '__main__':
     except:
         iteration_count = 0
 
-    best_model = args.best_model_path
     if best_model is not None:
         print('\nBest model {} specified!\n'.format(best_model))
+    if other_opponent_for_selfplay is not None:
+        print('\nOpponent {} for selfplay specified\n'.format(other_opponent_for_selfplay))
 
     utils.stress_message('Start to training from version: {}'.format(iteration_count), True)
-    evolve(model_path, args.other_opponent_for_selfplay, iteration_count, best_model)
+    evolve(model_path, other_opponent_for_selfplay, iteration_count, best_model)

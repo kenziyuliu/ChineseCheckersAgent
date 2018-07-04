@@ -210,3 +210,18 @@ def deepsizeof(obj, visited):
     return r
 
 
+if __name__ == '__main__':
+    from board import Board
+
+    b = Board()
+    p1 = to_model_input(b, PLAYER_ONE)
+    p2 = to_model_input(b, PLAYER_TWO)
+
+    print(p1[:, :, 0])
+    print(p2[:, :, 0])
+    print()
+    # print(p1[:, :, 1])
+    # print(p2[:, :, 1])
+    # print()
+    # print(p1[:, :, 6])
+    # print(p2[:, :, 6])

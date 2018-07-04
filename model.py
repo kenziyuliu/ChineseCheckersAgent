@@ -80,8 +80,8 @@ class ResidualCNN(Model):
 
         model = KerasModel(inputs=[main_input], outputs=[policy, value])
         model.compile(loss={'policy_head':softmax_cross_entropy_with_logits, 'value_head':'mean_squared_error'}
-                    # , optimizer=SGD(lr=LEARNING_RATE, momentum=0.9, nesterov=True) NOTE: keep here for reuse
-                    , optimizer=Adam(lr=LEARNING_RATE)
+                    , optimizer=SGD(lr=LEARNING_RATE, momentum=0.9, nesterov=True) # NOTE: keep here for reuse
+                    # , optimizer=Adam(lr=LEARNING_RATE)
                     , loss_weights=LOSS_WEIGHTS)
 
         return model
@@ -201,6 +201,8 @@ if __name__ == '__main__':
     # for i in range(model_input.shape[2]):
     #     print(model_input[:, :, i])
 
+    from keras.utils.vis_utils import plot_model
     model = ResidualCNN()
     # test for saving
     model.model.summary()
+    plot_model(model.model, to_file='model_plot_noshowname.png', show_shapes=True, show_layer_names=False)

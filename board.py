@@ -127,7 +127,7 @@ class Board:
         for i in range(1, visual_height + 1):
             # Number of slots in the board row
             num_slots = i if i <= BOARD_WIDTH else visual_height - i + 1
-            print('\tRow {:2}\t\t'.format(i), end='')
+            print('\tRow {:2}{}'.format(i, ' '*8), end='')
             # Print leading spaces
             print(' ' * ((leading_spaces - (num_slots - 1) * ((gap_btw_checkers + 1) // 2))), end='')
             print((' ' * gap_btw_checkers).join(map(str, cur_board.diagonal(BOARD_WIDTH - i))), end='\n\n')  # Board contents
@@ -294,7 +294,7 @@ if __name__ == '__main__':
     Put board.py testcases here
     """
     board = Board()
-
+    board.visualise()
     # print(board.board[board.checker_pos[PLAYER_ONE][0][0],
     # board.checker_pos[PLAYER_ONE][0][1], 0])
     #

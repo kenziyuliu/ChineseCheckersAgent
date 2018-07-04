@@ -101,4 +101,23 @@ class Game:
 
 
 if __name__ == '__main__':
-    print('Do not run this file directly!')
+    '''
+    Ad hoc games
+    '''
+    from collections import Counter
+    wincount = Counter()
+    for i in range(10000):
+        game = Game(p1_type='greedy', p2_type='greedy', verbose=False)
+        game.player_two = GreedyPlayer(player_num=2, stochastic=True)
+        wincount[game.start()] += 1
+    print(wincount)
+
+    '''
+    Counter({1: 5172, 2: 4675, None: 153})
+    Counter({1: 5233, 2: 4594, None: 173})
+    determin wins 9908  stochastic wins 9766  draw 326
+    '''
+
+
+
+

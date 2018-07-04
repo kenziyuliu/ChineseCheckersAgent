@@ -153,7 +153,6 @@ class MCTS:
         return self.root.pi, sampled_edge
 
 
-
 if __name__ == '__main__':
     count = 0
     board = board.Board()

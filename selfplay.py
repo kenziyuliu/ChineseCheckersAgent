@@ -29,8 +29,7 @@ def selfplay(model1, model2=None, randomised=False):
     while True:
         model = model1 if use_model1 else model2
 
-        num_moves = len(root.state.hist_moves)
-        if num_moves < INITIAL_RANDOM_MOVES:
+        if len(root.state.hist_moves) < INITIAL_RANDOM_MOVES:
             root = make_random_move(root)
         else:
             # Use Current model to make a move
@@ -151,3 +150,28 @@ def make_move(root, model, tree_tau, play_history):
 #         return REWARD["draw"]
 #
 #     return 1 if (player_one_distance - player_two_distance >= DIST_THRES_FOR_REWARD) else -1
+
+
+if __name__ == '__main__':
+    '''
+    Some tests here
+    '''
+    import sys
+    import time
+    from model import ResidualCNN
+
+    if len(sys.argv) != 2:
+        print('Model needed for testing: python3 selfplay.py <model path>')
+        exit()
+
+    model_path = sys.argv[1]
+    model = ResidualCNN()
+    model.load_weights(model_path)
+
+    history, reward = selfplay(model)
+    for i in range(8):
+        board, pi = history[i]
+        board.visualise()
+        time.sleep(3)
+
+
