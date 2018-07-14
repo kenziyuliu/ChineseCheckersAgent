@@ -205,4 +205,4 @@ if __name__ == '__main__':
     model = ResidualCNN()
     # test for saving
     model.model.summary()
-    plot_model(model.model, to_file='model_plot_noshowname.png', show_shapes=True, show_layer_names=False)
+    # plot_model(model.model, to_file='model_plot_noshowname.png', show_shapes=True, show_layer_names=False)

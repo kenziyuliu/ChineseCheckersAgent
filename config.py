@@ -84,7 +84,7 @@ When training in greedy:
     - 1 weight on value head
 
 When training in RL:
-    - higher REG (6e-3)
+    - higher REG (5e-3)
     - 1. weight on both value and policy head
     - ~5 Epoch
     - 12 Workers
