@@ -47,6 +47,7 @@ class HumanPlayer:
 
             try:
                 human_from_row, human_from_col, human_to_row, human_to_col = map(int, input().split())
+                os.system('clear')
             except ValueError:
                 print("\nInvalid Move Format! Try again!")
                 continue
