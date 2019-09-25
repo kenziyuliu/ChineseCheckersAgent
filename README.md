@@ -1,4 +1,4 @@
-# Chinese Checkers AI
+# Chinese Checkers Agent
 - This is the repository for a Chinese Checkers agent trained with heuristics-guided Reinforcement Learning and Monte Carlo Tree Search.
 - Clone the repository by running `git clone https://github.com/kenziyuliu/PythonChineseCheckers.git` in your terminal
 
